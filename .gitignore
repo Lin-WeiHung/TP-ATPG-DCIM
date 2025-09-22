@@ -1,0 +1,14 @@
+# 產生物
+output/
+*.o
+*.exe
+build/
+# 編輯器 & IDE
+.vscode/
+.idea/
+# Python
+__pycache__/
+*.pyc
+# CMake
+CMakeFiles/
+CMakeCache.txt

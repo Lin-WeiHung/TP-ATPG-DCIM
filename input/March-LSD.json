@@ -1,0 +1,4 @@
+{
+    "name": "March-LSD",
+    "pattern": "b(w0);a(r0,w1,r1,w1,w1,r1,w1,w0,r0,w1,w1,r1,w0,w1,r1,w1,r1,r1);a(r1,w1,w1,r1,w1,w0,r0,w1,w1,r1,w0,w1,r1,w1,r1,r1,r1,w0);a(r0);d(r0,w0,w0,r0,w0,w1,r1,w0,w0,r0,w1,w0,r0,w0,r0,r0,r0,w1);d(r1,w0,r0,w0,w0,r0,w0,w1,r1,w0,w0,r0,w1,w0,r0,w0,r0,r0);d(r0)"
+}
