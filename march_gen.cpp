@@ -172,7 +172,7 @@ string joinME(const ME& me){
 }
 
 // 整體 March Test
-struct MarchTest {
+struct RawMarchTest {
     // 以 Fig.4~6 的結構輸出：M0..M5
     ME M0, M1, M2, M3, M4, M5;
 };
@@ -299,7 +299,7 @@ void packFaultSetIntoME(const vector<TC>& set, ME& cur, ME& next, bool AO_up_for
 
 // ---------- Phase-1：從 Table III 生成 I-MTA ----------
 // 回傳：MarchTest with Fig.4 之 I-MTA（期望為 54N）。:contentReference[oaicite:23]{index=23}
-MarchTest build_I_MTA_from_TableIII(){
+RawMarchTest build_I_MTA_from_TableIII(){
     // 1) 解析 Table III → 16 類 Fault_Set(i,c)
     map<FaultSetKey, vector<TC>, FaultSetKeyLess> FS;
     for(auto& fp: buildTableIII()){
@@ -308,7 +308,7 @@ MarchTest build_I_MTA_from_TableIII(){
         FS[key].push_back(tc);
     }
 
-    MarchTest mt;
+    RawMarchTest mt;
     // M0: W0（與 Fig.4 一致）
     mt.M0.ops = { Op::W0 };
 
@@ -343,7 +343,7 @@ MarchTest build_I_MTA_from_TableIII(){
 // ---------- Phase-2：針對 Table III 的同款壓縮示範（I-MTA → I-MTA-1 → OMTA） ----------
 // 依論文兩個 observation 對「Table III 的 I-MTA」做相同操作：
 //  Obs1（Loop-Sens fault 插入致敏 → 刪掉別處可刪段）：在 M1(8) 後插入 {W0,W1}，刪除 M4(1..3)。:contentReference[oaicite:24]{index=24}
-void applyObs1_TableIII(MarchTest& mt){
+void applyObs1_TableIII(RawMarchTest& mt){
     // M1(8) 後插入 {W0,W1}：此處把「第 8 個」理解為 M1.ops 的第 8 筆（從 1 起算）
     auto& m1 = mt.M1.ops;
     if(m1.size() >= 8){
@@ -357,7 +357,7 @@ void applyObs1_TableIII(MarchTest& mt){
 }
 
 //  Obs2（交換片段使 flip deletable）：交換 M1(4..8) 與 M4(4..8)，並刪除 M1(3), M1(9), M4(3), M4(9)。:contentReference[oaicite:25]{index=25}
-void applyObs2_TableIII(MarchTest& mt){
+void applyObs2_TableIII(RawMarchTest& mt){
     auto& m1 = mt.M1.ops;
     auto& m4 = mt.M4.ops;
     auto safeSlice = [](vector<Op>& v, int l, int r){ // [l..r] 1-based
@@ -393,7 +393,7 @@ void applyObs2_TableIII(MarchTest& mt){
 }
 
 //輸出工具：印出 Fig.4/5/6 的樣式
-void printMarch(const string& title, const MarchTest& mt){
+void printMarch(const string& title, const RawMarchTest& mt){
     cout << "=== " << title << " ===\n";
     cout << "M0: (" << joinME(mt.M0) << ")\n";
     cout << "M1: (" << joinME(mt.M1) << ")\n";
@@ -408,16 +408,16 @@ int main(){
     cin.tie(nullptr);
 
     // Phase-1：以 Table III 建 I-MTA
-    MarchTest I_MTA = build_I_MTA_from_TableIII();
+    RawMarchTest I_MTA = build_I_MTA_from_TableIII();
     printMarch("Phase-1  (I-MTA  expected ~54N; Fig.4)", I_MTA);
 
     // Phase-2 / Obs1：Loop-Sens 插入 + 刪除
-    MarchTest I_MTA_1 = I_MTA;
+    RawMarchTest I_MTA_1 = I_MTA;
     applyObs1_TableIII(I_MTA_1);
     printMarch("Phase-2a (I-MTA-1 expected ~50N; Fig.5)", I_MTA_1);
 
     // Phase-2 / Obs2：交換片段 + 刪除 flips
-    MarchTest OMTA = I_MTA_1;
+    RawMarchTest OMTA = I_MTA_1;
     applyObs2_TableIII(OMTA);
     printMarch("Phase-2b (OMTA    expected ~42N; Fig.6)", OMTA);
 
