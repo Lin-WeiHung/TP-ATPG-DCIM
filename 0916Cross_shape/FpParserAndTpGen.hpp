@@ -426,21 +426,45 @@ inline SSpec FaultNormalizer::parse_side(const string& s, bool allow_and) {
         } else { if (out.last_D.value() != d) put_write(d); }
     };
 
+    // 支援兩種 AND 形式：
+    // 1) AND[01]Ci[01]D  （舊有：先確保 D 後做 ComputeAnd）
+    // 2) AND[01]Ci        （新加：不考慮/不保證 D，直接做 ComputeAnd）
     auto parse_and_token = [&](const string& raw){
         if (!allow_and) return false;
         string u = strip_spaces(raw);
         if (u.rfind("AND", 0) != 0) return false;
+
         size_t i = 3;
-        if (i>=u.size() || (u[i] != '0' && u[i] != '1')) throw runtime_error("parse_side: AND needs [01] after 'AND' in '"+raw+"'");
+        // 解析遮罩 cm
+        if (i>=u.size() || (u[i] != '0' && u[i] != '1'))
+            throw runtime_error("parse_side: AND needs [01] after 'AND' in '"+raw+"'");
         Val cm = *to_val(u[i]); ++i;
-        if (i+1>=u.size() || u.substr(i,2) != "Ci") throw runtime_error("parse_side: AND needs 'Ci' in '"+raw+"'");
+
+        // 必須跟著 "Ci"
+        if (i+1 > u.size() || u.substr(i,2) != "Ci")
+            throw runtime_error("parse_side: AND needs 'Ci' in '"+raw+"'");
         i += 2;
-        if (i>=u.size() || (u[i] != '0' && u[i] != '1')) throw runtime_error("parse_side: AND needs [01] before 'D' in '"+raw+"'");
+
+        // 如果已到 token 結尾 → 走「不考慮D」的 AND 版本
+        if (i == u.size()) {
+            Op op; op.kind=OpKind::ComputeAnd; op.C_T=Val::X; op.C_M=cm; op.C_B=Val::X;
+            out.ops.push_back(op);
+            return true;
+        }
+
+        // 否則，必須是 [01]D（舊有語法）
+        if (u[i] != '0' && u[i] != '1')
+            throw runtime_error("parse_side: AND must end right after 'Ci' or follow with [01]D in '"+raw+"'");
         Val needD = *to_val(u[i]); ++i;
-        if (i>=u.size() || u[i] != 'D') throw runtime_error("parse_side: AND must end with 'D' in '"+raw+"'");
+
+        if (i>=u.size() || u[i] != 'D')
+            throw runtime_error("parse_side: AND must end with 'D' in '"+raw+"'");
         ++i;
+
+        // 可接受有無多餘空白，但已 strip_spaces，理論上 i==u.size()
         ensure_D(needD);
-        Op op; op.kind=OpKind::ComputeAnd; op.C_T=Val::X; op.C_M=cm; op.C_B=Val::X; out.ops.push_back(op);
+        Op op; op.kind=OpKind::ComputeAnd; op.C_T=Val::X; op.C_M=cm; op.C_B=Val::X;
+        out.ops.push_back(op);
         return true;
     };
 
@@ -458,6 +482,7 @@ inline SSpec FaultNormalizer::parse_side(const string& s, bool allow_and) {
     }
     return out;
 }
+
 
 inline FSpec FaultNormalizer::parse_f(const string& s) {
     FSpec out; // default X
@@ -586,7 +611,7 @@ inline const DC& pick(const CrossState& s, Slot k) {
 struct Detector {
     Op detectOp{OpKind::Read, Val::X}; // Read: value; ComputeAnd: C_T/C_M/C_B
     PositionMark pos{PositionMark::Adjacent};
-    bool has_set_Sa_Ci{false};
+    bool has_set_Ci{false};
     enum class AddrOrder { None, Assending, Decending };
     AddrOrder order{AddrOrder::None};
 };
@@ -757,7 +782,10 @@ inline Detector DetectorPlanner::makeComputeBase(CellScope scope, const FPExpr& 
 
 inline void DetectorPlanner::setComputeTB(CellScope scope, const FPExpr& fp, const OrientationPlan& plan, Detector& d) const {
     if (canComputeSetCi(fp, scope)) {
-            const Val sa_ci = fp.Sa ? fp.Sa->Ci.value_or(Val::X) : Val::X; if (plan.group==OrientationGroup::A_LT_V) d.detectOp.C_T = sa_ci; if (plan.group==OrientationGroup::A_GT_V) d.detectOp.C_B = sa_ci; d.has_set_Sa_Ci=true; 
+            const Val sa_ci = fp.Sa ? fp.Sa->Ci.value_or(Val::X) : Val::X; 
+            if (plan.group==OrientationGroup::A_LT_V) d.detectOp.C_T = sa_ci; 
+            if (plan.group==OrientationGroup::A_GT_V) d.detectOp.C_B = sa_ci; 
+            d.has_set_Ci=true; 
     }
 }
 
@@ -805,7 +833,7 @@ bool DetectorPlanner::needDetection(const FPExpr& fp) const {
 // 是否允許偵測端 Compute 設置 Top Ci和 Bottom Ci
 bool DetectorPlanner::canComputeSetCi(const FPExpr& fp, CellScope scope) const {
     if (fp.s_has_any_op) {
-        // 若 Op 含有 Read/Write，則不可設置 Sa.Ci
+        // 若 Op 含有 Read/Write，則不可設置 Ci
         for (const auto& op : fp.Sv.ops) {
             if (op.kind == OpKind::Read || op.kind == OpKind::Write) return false;
         }
@@ -883,7 +911,7 @@ inline void StateAssembler::fill_non_pivot(CrossState& state, const OrientationP
 
         if (plan.pivot == WhoIsPivot::Victim) {
             ref.D = fp.Sa->pre_D.value_or(Val::X);
-            if (detector.detectOp.kind == OpKind::ComputeAnd && detector.has_set_Sa_Ci) {
+            if (detector.detectOp.kind == OpKind::ComputeAnd && detector.has_set_Ci) {
                 // 若偵測器是 Compute 且有設置 Top/Bottom Ci，則非 pivot Aggressor 的 Ci 為偵測器的 Ci
                 ref.C = Val::X;
             } else {

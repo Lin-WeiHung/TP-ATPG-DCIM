@@ -25,7 +25,7 @@
   {"fault_id":"IC11","category":"must_compute","cell_scope":"single cell","fault_primitives":["< AND1Ci1D/1D/-/0Co >"]},
   {"fault_id":"SDC(11,01)","category":"must_compute","cell_scope":"single cell","fault_primitives":["< 1Ci1D, AND0Ci1D/1D/-/1Co >"]},
   {"fault_id":"SDC(11,10)","category":"must_compute","cell_scope":"single cell","fault_primitives":["< 1Ci1D, AND1Ci0D/0D/-/1Co >"]},
-  {"fault_id":"CIDC","category":"must_compute","cell_scope":"single cell","fault_primitives":["< 0Ci/-/-/1Co >","< 1Ci/-/-/0Co >"]},
+  {"fault_id":"CIDC","category":"must_compute","cell_scope":"single cell","fault_primitives":["< AND0Ci/-/-/1Co >","< AND1Ci/-/-/0Co >"]},
   {"fault_id":"CI(00,11)","category":"must_compute","cell_scope":"two cell cross row","fault_primitives":["< 0Ci0D; AND1Ci1D/1D/-/0Co >"]},
   {"fault_id":"CI(01,11)","category":"must_compute","cell_scope":"two cell cross row","fault_primitives":["< 0Ci1D; AND1Ci1D/1D/-/0Co >"]},
   {"fault_id":"CI(10,11)","category":"must_compute","cell_scope":"two cell same row","fault_primitives":["< 1Ci0D; AND1Ci1D/1D/-/0Co >"]},

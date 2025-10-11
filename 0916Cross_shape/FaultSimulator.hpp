@@ -364,9 +364,11 @@ inline void OpTableBuilder::derive_pre_state_in_same_row(vector<OpContext>& opt)
         AddrOrder ord = elem_orders[elem];
         Val d1_init = (ord==AddrOrder::Up || ord==AddrOrder::Any)? baseD2_up : baseD2_prev;
         Val d3_init = (ord==AddrOrder::Down)? baseD2_up : baseD2_prev;
-        Val curD2 = (ord==AddrOrder::Down)? baseD2_up : baseD2_prev;
+        Val curD2 = baseD2_prev;
         auto cSent = getCSent(elem);
-        Val c0 = cSent[0]; Val c2 = cSent[1]; Val c4 = cSent[2];
+        Val c0 = (ord==AddrOrder::Down) ? cSent[0] : cSent[1]; 
+        Val c2 = (ord==AddrOrder::Down) ? cSent[2] : cSent[0];
+        Val c4 = (ord==AddrOrder::Down) ? cSent[1] : cSent[2];
 
         // element 內逐 op
         for(int id = ranges[elem].first; id <= ranges[elem].last; ++id){
@@ -522,7 +524,10 @@ inline int DetectEngine::cover(const vector<OpContext>& opt, int sens_end_id, co
 
     int detect_id = -1;
     switch (tp.detector.pos) {
-        case PositionMark::Adjacent:         detect_id = opt[sens_end_id].next_op_index; break;
+        case PositionMark::Adjacent:
+            if (tp.ops_before_detect.empty()) detect_id = sens_end_id; // state 與 sens 同一個 op
+            else detect_id = opt[sens_end_id].next_op_index;
+            break;
         case PositionMark::SameElementHead:  detect_id = opt[sens_end_id].head_same;     break;
         case PositionMark::NextElementHead:  detect_id = opt[sens_end_id].head_next;     break;
     }
@@ -678,20 +683,18 @@ inline SimulationResult FaultSimulator::simulate(const MarchTest& mt, const vect
     // 3) 三階段模擬
     result.cover_lists.resize(result.op_table.size());
     for (size_t op_id = 0; op_id < result.op_table.size(); ++op_id) {
-        auto& cl = result.cover_lists[op_id];
-
         // 1) State cover
-        cl.state_cover = state_cover_engine.cover(result.op_table[op_id].pre_state);
+        result.cover_lists[op_id].state_cover = state_cover_engine.cover(result.op_table[op_id].pre_state);
 
         // 2) Sens + Detect 必須串在一起檢查
-        for (size_t tp_gid : cl.state_cover) {
+        for (size_t tp_gid : result.cover_lists[op_id].state_cover) {
             int sens_end_id = sens_engine.cover(result.op_table, (int)op_id, tps[tp_gid]);
             if (sens_end_id == -1) continue;                // 沒致敏就不做偵測
-            cl.sens_cover.push_back(tp_gid);
+            result.cover_lists[sens_end_id].sens_cover.push_back(tp_gid);
 
             int det_id = detect_engine.cover(result.op_table, sens_end_id, tps[tp_gid]);
             if (det_id != -1) {
-                cl.det_cover.push_back(SensDetHit{tp_gid, sens_end_id, det_id});
+                result.cover_lists[det_id].det_cover.push_back(SensDetHit{tp_gid, sens_end_id, det_id});
             }
         }
     }

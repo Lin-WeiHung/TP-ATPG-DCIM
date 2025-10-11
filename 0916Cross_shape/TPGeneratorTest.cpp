@@ -118,7 +118,7 @@ static bool test_StateAssembler(){
     assert(st.A0.D == Val::One);
 
     // When detector is Compute and sets top/bottom C, non-pivot Aggressor Ci becomes X per rule
-    Detector d2; d2.kind=DetectKind::ComputeAnd; d2.C_T = Val::One; d2.has_set_Sa_Ci = true; // set top Ci implies Sa.Ci is controlled by detector
+    Detector d2; d2.kind=DetectKind::ComputeAnd; d2.C_T = Val::One; d2.has_set_Ci = true; // set top Ci implies Sa.Ci is controlled by detector
     CrossState st2 = sa.assemble(fp, plan, d2);
     assert(st2.A0.C == Val::X);
 
