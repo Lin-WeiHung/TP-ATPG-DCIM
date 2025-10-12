@@ -171,7 +171,7 @@ int main(){
                         for (size_t oi=0; oi<tp->ops_before_detect.size(); ++oi){ if (oi) opss<<", "; opss<<op_repr(tp->ops_before_detect[oi]); }
                     }
                     std::ostringstream dets;
-                    if (!tp->detectionNecessary) dets << "(none)"; else {
+                    if (!tp->R_has_value) dets << "(none)"; else {
                         dets << detect_repr(tp->detector);
                         dets << " [" << pos2s(tp->detector.pos);
                         if (tp->detector.pos == PositionMark::SameElementHead || tp->detector.pos == PositionMark::NextElementHead)

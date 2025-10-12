@@ -309,7 +309,7 @@ static void test_DetectEngine(){
 	auto mt = make_mini_march(); OpTableBuilder b; auto opt = b.build(mt);
 	// sens_end=1 => adjacent should detect op#2 if detector is C(1)(1)(1)
 	Detector dec; dec.detectOp.kind=OpKind::ComputeAnd; dec.detectOp.C_T=Val::One; dec.detectOp.C_M=Val::One; dec.detectOp.C_B=Val::One; dec.pos=PositionMark::Adjacent;
-	DetectEngine d; TestPrimitive dummy; dummy.detector=dec; dummy.detectionNecessary=true;
+	DetectEngine d; TestPrimitive dummy; dummy.detector=dec; dummy.R_has_value=true;
 	int det = d.cover(opt, 1, dummy); CHECK(det==2, "detect compute at op#2");
 	// sens_end=2 => adjacent should detect op#3 if detector is R1
 	Detector rd; rd.detectOp.kind=OpKind::Read; rd.detectOp.value=Val::One; rd.pos=PositionMark::Adjacent; dummy.detector=rd;

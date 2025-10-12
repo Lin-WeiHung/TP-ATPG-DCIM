@@ -232,7 +232,7 @@ static void generate_markdown_report(const string& jsonPath, const string& outPa
             size_t local = 0;
             for (const auto* tp : list){
                 ofs << "#### TP["<<fpi<<":"<<local++<<"] (group="<<group2s(tp->group)<<")\n\n";
-                if (!tp->detectionNecessary) {
+                if (!tp->R_has_value) {
                     ofs << "- detector: (none; detection not necessary)\n";
                 } else {
                     write_detector_md(ofs, tp->detector);

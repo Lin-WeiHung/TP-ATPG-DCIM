@@ -631,7 +631,9 @@ struct TestPrimitive {
 
     // 偵測器
     Detector detector;
-    bool detectionNecessary{false}; // 某些情況下不需要偵測
+    bool F_has_value{false};
+    bool R_has_value{false}; // 如果R為錯誤則不需要額外detector
+    bool C_has_value{false};
 };
 
 struct OrientationPlan {
@@ -946,7 +948,6 @@ inline vector<TestPrimitive> TPGenerator::generate(const Fault& fault) {
             if (detectors.empty()) {
                 // 不需要偵測器，仍然產生一個 TP，但標記為不需要偵測
                 TestPrimitive tp = assemble_tp(fault, i, plan, Detector{});
-                tp.detectionNecessary = false;
                 out.push_back(tp);
             } else {
                 for (const auto& detector : detectors) {
@@ -967,6 +968,8 @@ inline TestPrimitive TPGenerator::assemble_tp(const Fault& fault, const size_t f
     tp.state = state_assembler_.assemble(fault.primitives[fp_index], plan, detector);
     tp.ops_before_detect = state_assembler_.ops_before_detect(fault.primitives[fp_index], fault.category);
     tp.detector = detector;
-    tp.detectionNecessary = true;
+    tp.F_has_value = fault.primitives[fp_index].F.FD.has_value() && fault.primitives[fp_index].F.FD.value() != Val::X;
+    tp.R_has_value = fault.primitives[fp_index].R.RD.has_value() && fault.primitives[fp_index].R.RD.value() != Val::X;
+    tp.C_has_value = fault.primitives[fp_index].C.Co.has_value() && fault.primitives[fp_index].C.Co.value() != Val::X;
     return tp;
 }

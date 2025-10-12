@@ -516,24 +516,53 @@ public:
     int cover(const vector<OpContext>& opt, int sens_end_id, const TestPrimitive& tp) const;
 private:
     bool detect_match(const OpContext& op, const Detector& dec) const;
+    bool is_masking_on_D(const OpContext& op) const { return (op.op.kind == OpKind::Write); }
 };
 
 inline int DetectEngine::cover(const vector<OpContext>& opt, int sens_end_id, const TestPrimitive& tp) const {
     if (sens_end_id < 0 || sens_end_id >= (int)opt.size()) return -1;
-    if (!tp.detectionNecessary) return sens_end_id;
+    if (tp.R_has_value) return sens_end_id;
 
-    int detect_id = -1;
+    // 1) 先把 # / ^ / ; 轉成錨點（原本定位點）
+    int anchor = -1;
     switch (tp.detector.pos) {
         case PositionMark::Adjacent:
-            if (tp.ops_before_detect.empty()) detect_id = sens_end_id; // state 與 sens 同一個 op
-            else detect_id = opt[sens_end_id].next_op_index;
+            // 無 sensitizer 時，偵測與 state 同一個 op；有 sensitizer 時取同 element 的下一個 op
+            anchor = tp.ops_before_detect.empty() ? sens_end_id : opt[sens_end_id].next_op_index;
             break;
-        case PositionMark::SameElementHead:  detect_id = opt[sens_end_id].head_same;     break;
-        case PositionMark::NextElementHead:  detect_id = opt[sens_end_id].head_next;     break;
+        case PositionMark::SameElementHead:
+            anchor = opt[sens_end_id].head_same;
+            break;
+        case PositionMark::NextElementHead:
+            anchor = opt[sens_end_id].head_next;
+            break;
     }
-    if (detect_id < 0 || detect_id >= (int)opt.size()) return -1; // ← 防呆
-    return detect_match(opt[detect_id], tp.detector) ? detect_id : -1;
+    if (anchor < 0 || anchor >= (int)opt.size()) return -1;
+
+    // 2) 決定是否啟用「往後掃描」模式
+    //    僅當 F 在 D 面有具體值時（對應到 detector.kind==Read 且 value!=X）才啟用。
+    if (!tp.F_has_value) {
+        // 舊語意：只在錨點做一次比對
+        return detect_match(opt[anchor], tp.detector) ? anchor : -1;
+    }
+
+    // 3) 新語意（F 有值）：自錨點起往後掃描，直到找到 detector 或被 mask
+    //    這裡的「往後」是針對同一目標 cell 的操作序列（同一地址的執行序），
+    //    因 opt 是 per-address/element 的攤平成序關係（參見 OpTableBuilder 的鄰接建構）。:contentReference[oaicite:3]{index=3}
+    for (int i = anchor; i < (int)opt.size(); ++i) {
+        // 先檢查遮罩：一旦遇到會寫 D 的操作，代表 fault effect 被洗掉 → 失敗
+        if (is_masking_on_D(opt[i])) {
+            return -1;
+        }
+        // 符合 detector（例如 R0/R1）→ 成功
+        if (detect_match(opt[i], tp.detector)) {
+            return i;
+        }
+        // 否則持續往後找下一個 op
+    }
+    return -1; // 沒找到 detector 且未被寫 D 擋到 → 視為未偵測
 }
+
 
 inline bool DetectEngine::detect_match(const OpContext& op, const Detector& dec) const {
     if (op.op.kind != dec.detectOp.kind) return false; // 不同 kind
