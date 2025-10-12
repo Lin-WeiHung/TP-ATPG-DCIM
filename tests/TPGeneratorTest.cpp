@@ -71,19 +71,23 @@ static bool test_DetectorPlanner(){
     // Build a fault and FPExpr
     Fault fault; fault.fault_id = "F1"; fault.cell_scope = CellScope::TwoCellCrossRow;
 
-    // Case 1: EitherReadOrCompute -> two detectors
+    // Case 1: EitherReadOrCompute -> should produce one Read and one Compute detector (pivot Victim => single pos variant)
     fault.category = Category::EitherReadOrCompute;
     FPExpr fp1; fp1.Sv.last_D = Val::One; fp1.R.RD.reset(); // ensure detection needed
     OrientationPlan plan1{OrientationGroup::A_LT_V, WhoIsPivot::Victim, {Slot::A0}};
     auto dets1 = dp.plan(fault, fp1, plan1);
     assert(dets1.size()==2);
-    assert(dets1[0].kind == DetectKind::Read);
-    assert(dets1[1].kind == DetectKind::ComputeAnd);
+    bool hasRead=false, hasComp=false;
+    for (const auto& d : dets1){
+        if (d.detectOp.kind == OpKind::Read) hasRead=true;
+        if (d.detectOp.kind == OpKind::ComputeAnd) hasComp=true;
+    }
+    assert(hasRead && hasComp);
 
     // Case 2: MustRead -> one read
     fault.category = Category::MustRead;
     auto dets2 = dp.plan(fault, fp1, plan1);
-    assert(dets2.size()==1 && dets2[0].kind==DetectKind::Read);
+    assert(dets2.size()==1 && dets2[0].detectOp.kind==OpKind::Read);
 
     // Case 3: MustCompute -> one compute, CM from Sv last compute
     fault.category = Category::MustCompute;
@@ -94,9 +98,9 @@ static bool test_DetectorPlanner(){
     }
     fp3.R.RD.reset();
     auto dets3 = dp.plan(fault, fp3, plan1);
-    assert(dets3.size()==1 && dets3[0].kind==DetectKind::ComputeAnd);
+    assert(dets3.size()==1 && dets3[0].detectOp.kind==OpKind::ComputeAnd);
     // CM equals last compute CM (0)
-    assert(dets3[0].C_M == Val::Zero);
+    assert(dets3[0].detectOp.C_M == Val::Zero);
 
     cout << "  - OK\n";
     return true;
@@ -110,7 +114,7 @@ static bool test_StateAssembler(){
     FPExpr fp; fp.Sa = SSpec{}; fp.Sa->pre_D = Val::One; fp.Sa->Ci = Val::Zero; fp.Sv.pre_D=Val::Zero; fp.Sv.Ci=Val::One;
     OrientationPlan plan{OrientationGroup::A_LT_V, WhoIsPivot::Victim, {Slot::A0}};
 
-    Detector d; d.kind=DetectKind::Read; // simple read
+    Detector d; d.detectOp.kind=OpKind::Read; // simple read
     CrossState st = sa.assemble(fp, plan, d);
     // CAS
     assert(st.A2_CAS.D == Val::Zero && st.A2_CAS.C == Val::One);
@@ -118,7 +122,7 @@ static bool test_StateAssembler(){
     assert(st.A0.D == Val::One);
 
     // When detector is Compute and sets top/bottom C, non-pivot Aggressor Ci becomes X per rule
-    Detector d2; d2.kind=DetectKind::ComputeAnd; d2.C_T = Val::One; d2.has_set_Ci = true; // set top Ci implies Sa.Ci is controlled by detector
+    Detector d2; d2.detectOp.kind=OpKind::ComputeAnd; d2.detectOp.C_T = Val::One; d2.has_set_Ci = true; // set top Ci implies Sa.Ci is controlled by detector
     CrossState st2 = sa.assemble(fp, plan, d2);
     assert(st2.A0.C == Val::X);
 
@@ -163,13 +167,13 @@ static void write_ops_md(std::ofstream& ofs, const vector<Op>& ops){
 
 static void write_detector_md(std::ofstream& ofs, const Detector& d){
     ofs << "- detector:" << "\n";
-    ofs << "  - kind: " << (d.kind == DetectKind::Read ? "Read" : "Compute(AND)") << "\n";
-    if (d.kind == DetectKind::Read) {
-        ofs << "  - read_expect: " << v2s(d.read_expect) << "\n";
+    ofs << "  - kind: " << (d.detectOp.kind == OpKind::Read ? "Read" : "Compute(AND)") << "\n";
+    if (d.detectOp.kind == OpKind::Read) {
+        ofs << "  - read_expect: " << v2s(d.detectOp.value) << "\n";
     } else {
-        ofs << "  - C_T: " << v2s(d.C_T) << "\n";
-        ofs << "  - C_M: " << v2s(d.C_M) << "\n";
-        ofs << "  - C_B: " << v2s(d.C_B) << "\n";
+        ofs << "  - C_T: " << v2s(d.detectOp.C_T) << "\n";
+        ofs << "  - C_M: " << v2s(d.detectOp.C_M) << "\n";
+        ofs << "  - C_B: " << v2s(d.detectOp.C_B) << "\n";
     }
     ofs << "  - pos: " << pos2s(d.pos) << "\n";
     if (d.pos == PositionMark::SameElementHead || d.pos == PositionMark::NextElementHead) {
@@ -262,7 +266,7 @@ int main(){
         if (ok1 && ok2 && ok3) cout << "All unit tests passed.\n";
 
         // E2E markdown generation
-        string inJson = "0916Cross_shape/faults.json"; // run from repo root
+    string inJson = "input/S_C_faults.json"; // run from repo root
         string outMd  = "output/TP_Report.md";
         generate_markdown_report(inJson, outMd);
         cout << "Markdown report written to: " << outMd << endl;
