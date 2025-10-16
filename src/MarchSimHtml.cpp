@@ -46,15 +46,19 @@
 //       Op op;                      // 當前操作（W0/W1/R0/R1/C(T)(M)(B)）
 //       struct { struct { Val D,C; } A0,A1,A2_CAS,A3,A4; } pre_state; // Cross-state(5點) 於此 op 之前
 //   };
-//   struct SensDetHit { size_t tp_gid; int sens_id; int det_id; };
 //   struct CoverListPerOp {
 //       std::vector<size_t> state_cover;  // 命中 TP gid（state）
 //       std::vector<size_t> sens_cover;   // 命中 TP gid（sens）
-//       std::vector<SensDetHit> det_cover;// 命中偵測（含 sens/det 兩個 op id）
+//       std::vector<size_t> det_cover;    // 命中偵測（tp_gid）
 //   };
 //   struct FaultCoverageDetail {
-//       double coverage;                   // 該 fault 被偵測比例（0~1）
-//       std::vector<SensDetHit> hits;      // 每次偵測事件（含 tp_gid 與對應 sens/det op 位置）
+//       double coverage;          // 與 detect_coverage 相同（相容性）
+//       double state_coverage;    // state 階段 coverage
+//       double sens_coverage;     // sens  階段 coverage
+//       double detect_coverage;   // detect階段 coverage
+//       std::vector<size_t> state_tp_gids;  // 命中 state 的 TP gids
+//       std::vector<size_t> sens_tp_gids;   // 命中 sens  的 TP gids
+//       std::vector<size_t> detect_tp_gids; // 命中 detect 的 TP gids
 //   };
 //   struct SimulationResult {
 //       std::vector<OpContext> op_table;                        // 模擬展開後的 op 清單（含 pre-state）
@@ -84,6 +88,7 @@
 #include <string>
 #include <vector>
 #include <filesystem>
+#include <chrono>
 
 #include "../include/FaultSimulator.hpp"
 
@@ -302,7 +307,7 @@ static void write_tp_details(std::ostream& os, const TestPrimitive& tp,
  * @param oc 對應的 OpContext（含 elem/index/order/op 與 pre_state 5 個點位）
  */
 static void write_op_summary_cells(std::ostream& os, size_t i, const OpContext& oc){
-	os << "<td>"<< i <<"</td><td>"<< oc.elem_index <<"</td><td>"<< oc.index_within_elem
+	os << "<td>"<< i <<"</td><td>"<< (oc.elem_index + 1) <<"</td><td>"<< (oc.index_within_elem + 1)
 	   <<"</td><td>"<< addr2s(oc.order) <<"</td><td>"<< op_repr(oc.op) <<"</td>";
 	os << "<td class=\"state\">"<< html_escape(state_cell(oc.pre_state.A0.D,     oc.pre_state.A0.C))     <<"</td>";
 	os << "<td class=\"state\">"<< html_escape(state_cell(oc.pre_state.A1.D,     oc.pre_state.A1.C))     <<"</td>";
@@ -317,7 +322,7 @@ static void write_op_summary_cells(std::ostream& os, size_t i, const OpContext& 
 static inline void write_common_table_head(std::ostream& os){
 	os << "<table class=\"striped\"><thead><tr>"
 	   << "<th>#</th><th>Elem</th><th>Idx</th><th>Order</th><th>Op</th>"
-	   << "<th>Pre A0</th><th>Pre A1</th><th>Pre CAS</th><th>Pre A3</th><th>Pre A4</th><th>TPs</th>"
+	<< "<th>Pre A0</th><th>Pre A1</th><th>Pre CAS</th><th>Pre A3</th><th>Pre A4</th><th>Coverage</th><th>TPs</th>"
 	   << "</tr></thead><tbody>";
 }
 
@@ -332,14 +337,48 @@ static inline void write_common_table_head(std::ostream& os){
 static void write_state_cover_table(std::ostream& os, const SimulationResult& sim,
 									const vector<TestPrimitive>& tps,
 									const vector<RawFault>& raw_faults,
-									const std::unordered_map<string, size_t>& raw_index_by_id){
+									const std::unordered_map<string, size_t>& raw_index_by_id,
+									const vector<Fault>& faults){
 	os << "<details><summary>State cover (rows: "<< sim.op_table.size() <<")</summary>";
 	write_common_table_head(os);
+	int last_elem = -1; bool useB = true; // first element => rowA
 	for (size_t i=0;i<sim.op_table.size();++i){
 		const auto& oc = sim.op_table[i];
 		const auto& cl = sim.cover_lists[i];
-		os << "<tr>";
+		if (oc.elem_index != last_elem){ useB = !useB; last_elem = oc.elem_index; }
+		os << "<tr class=\"" << (useB? "rowB" : "rowA") << "\">";
 		write_op_summary_cells(os, i, oc);
+		// Coverage cell (state) — cumulative from op#0 to current i
+		{
+			struct Flags{ bool any=false, lt=false, gt=false; };
+			std::unordered_map<string, Flags> agg;
+			// accumulate tp groups up to current op
+			for (size_t j=0; j<=i && j<sim.cover_lists.size(); ++j){
+				for (size_t gid : sim.cover_lists[j].state_cover){
+					const auto& tp = tps[gid];
+					auto& f = agg[tp.parent_fault_id];
+					if (tp.group==OrientationGroup::Single) f.any=true;
+					else if (tp.group==OrientationGroup::A_LT_V) f.lt=true;
+					else if (tp.group==OrientationGroup::A_GT_V) f.gt=true;
+				}
+			}
+			double sum=0.0; size_t denom = faults.size();
+			for (const auto& fault : faults){
+				const auto itf = agg.find(fault.fault_id);
+				double cov = 0.0;
+				if (fault.cell_scope == CellScope::SingleCell){
+					cov = (itf!=agg.end() && itf->second.any) ? 1.0 : 0.0;
+				} else {
+					bool lt = (itf!=agg.end() && itf->second.lt);
+					bool gt = (itf!=agg.end() && itf->second.gt);
+					cov = (lt?0.5:0.0) + (gt?0.5:0.0);
+				}
+				sum += cov;
+			}
+			double avg = denom? (sum/denom) : 0.0;
+			std::ostringstream covss; covss.setf(std::ios::fixed); covss<< std::setprecision(2) << (avg*100.0) << "%";
+			os << "<td>"<< covss.str() <<"</td>";
+		}
 		os << "<td><details><summary>TPs ("<< cl.state_cover.size() <<")</summary>";
 		for (size_t tp_gid : cl.state_cover){
 			const auto& tp = tps[tp_gid];
@@ -361,14 +400,47 @@ static void write_state_cover_table(std::ostream& os, const SimulationResult& si
 static void write_sens_cover_table(std::ostream& os, const SimulationResult& sim,
 								   const vector<TestPrimitive>& tps,
 								   const vector<RawFault>& raw_faults,
-								   const std::unordered_map<string, size_t>& raw_index_by_id){
+								   const std::unordered_map<string, size_t>& raw_index_by_id,
+								   const vector<Fault>& faults){
 	os << "<details><summary>Sens cover (rows: "<< sim.op_table.size() <<")</summary>";
 	write_common_table_head(os);
+	int last_elem = -1; bool useB = true;
 	for (size_t i=0;i<sim.op_table.size();++i){
 		const auto& oc = sim.op_table[i];
 		const auto& cl = sim.cover_lists[i];
-		os << "<tr>";
+		if (oc.elem_index != last_elem){ useB = !useB; last_elem = oc.elem_index; }
+		os << "<tr class=\"" << (useB? "rowB" : "rowA") << "\">";
 		write_op_summary_cells(os, i, oc);
+		// Coverage cell (sens) — cumulative
+		{
+			struct Flags{ bool any=false, lt=false, gt=false; };
+			std::unordered_map<string, Flags> agg;
+			for (size_t j=0; j<=i && j<sim.cover_lists.size(); ++j){
+				for (size_t gid : sim.cover_lists[j].sens_cover){
+					const auto& tp = tps[gid];
+					auto& f = agg[tp.parent_fault_id];
+					if (tp.group==OrientationGroup::Single) f.any=true;
+					else if (tp.group==OrientationGroup::A_LT_V) f.lt=true;
+					else if (tp.group==OrientationGroup::A_GT_V) f.gt=true;
+				}
+			}
+			double sum=0.0; size_t denom = faults.size();
+			for (const auto& fault : faults){
+				const auto itf = agg.find(fault.fault_id);
+				double cov = 0.0;
+				if (fault.cell_scope == CellScope::SingleCell){
+					cov = (itf!=agg.end() && itf->second.any) ? 1.0 : 0.0;
+				} else {
+					bool lt = (itf!=agg.end() && itf->second.lt);
+					bool gt = (itf!=agg.end() && itf->second.gt);
+					cov = (lt?0.5:0.0) + (gt?0.5:0.0);
+				}
+				sum += cov;
+			}
+			double avg = denom? (sum/denom) : 0.0;
+			std::ostringstream covss; covss.setf(std::ios::fixed); covss<< std::setprecision(2) << (avg*100.0) << "%";
+			os << "<td>"<< covss.str() <<"</td>";
+		}
 		os << "<td><details><summary>TPs ("<< cl.sens_cover.size() <<")</summary>";
 		for (size_t tp_gid : cl.sens_cover){
 			const auto& tp = tps[tp_gid];
@@ -390,23 +462,55 @@ static void write_sens_cover_table(std::ostream& os, const SimulationResult& sim
 static void write_detect_cover_table(std::ostream& os, const SimulationResult& sim,
 									 const vector<TestPrimitive>& tps,
 									 const vector<RawFault>& raw_faults,
-									 const std::unordered_map<string, size_t>& raw_index_by_id){
+									 const std::unordered_map<string, size_t>& raw_index_by_id,
+									 const vector<Fault>& faults){
 	os << "<details><summary>Detect cover (rows: "<< sim.op_table.size() <<")</summary>";
 	write_common_table_head(os);
+	int last_elem = -1; bool useB = true;
 	for (size_t i=0;i<sim.op_table.size();++i){
 		const auto& oc = sim.op_table[i];
 		const auto& cl = sim.cover_lists[i];
-		os << "<tr>";
+		if (oc.elem_index != last_elem){ useB = !useB; last_elem = oc.elem_index; }
+		os << "<tr class=\"" << (useB? "rowB" : "rowA") << "\">";
 		write_op_summary_cells(os, i, oc);
+		// Coverage cell (detect) — cumulative
+		{
+			struct Flags{ bool any=false, lt=false, gt=false; };
+			std::unordered_map<string, Flags> agg;
+			for (size_t j=0; j<=i && j<sim.cover_lists.size(); ++j){
+				for (size_t gid : sim.cover_lists[j].det_cover){
+					const auto& tp = tps[gid];
+					auto& f = agg[tp.parent_fault_id];
+					if (tp.group==OrientationGroup::Single) f.any=true;
+					else if (tp.group==OrientationGroup::A_LT_V) f.lt=true;
+					else if (tp.group==OrientationGroup::A_GT_V) f.gt=true;
+				}
+			}
+			double sum=0.0; size_t denom = faults.size();
+			for (const auto& fault : faults){
+				const auto itf = agg.find(fault.fault_id);
+				double cov = 0.0;
+				if (fault.cell_scope == CellScope::SingleCell){
+					cov = (itf!=agg.end() && itf->second.any) ? 1.0 : 0.0;
+				} else {
+					bool lt = (itf!=agg.end() && itf->second.lt);
+					bool gt = (itf!=agg.end() && itf->second.gt);
+					cov = (lt?0.5:0.0) + (gt?0.5:0.0);
+				}
+				sum += cov;
+			}
+			double avg = denom? (sum/denom) : 0.0;
+			std::ostringstream covss; covss.setf(std::ios::fixed); covss<< std::setprecision(2) << (avg*100.0) << "%";
+			os << "<td>"<< covss.str() <<"</td>";
+		}
 		os << "<td><details><summary>TPs ("<< cl.det_cover.size() <<")</summary>";
-		for (const auto& h : cl.det_cover){
-			const auto& tp = tps[h.tp_gid];
+		for (size_t tp_gid : cl.det_cover){
+			const auto& tp = tps[tp_gid];
 			const RawFault* rf = nullptr;
 			if (auto it = raw_index_by_id.find(tp.parent_fault_id); it!=raw_index_by_id.end())
 				rf = &raw_faults.at(it->second);
-			os << "<details><summary>#"<< h.tp_gid <<"</summary>";
+			os << "<details><summary>#"<< tp_gid <<"</summary>";
 			write_tp_details(os, tp, rf, /*state*/false, /*sens*/false, /*detect*/true);
-			os << "<div class=\"muted\">sens_op_id="<< h.sens_id <<", det_op_id="<< h.det_id <<"</div>";
 			os << "</details>";
 		}
 		os << "</details></td></tr>";
@@ -417,14 +521,7 @@ static void write_detect_cover_table(std::ostream& os, const SimulationResult& s
 /**
  * @brief 輸出單一 op 的迷你表格（巢狀明細使用）
  */
-static void write_single_op_table(std::ostream& os, size_t id, const OpContext& oc){
-	os << "<table class=\"striped\"><thead><tr>"
-	   << "<th>#</th><th>Elem</th><th>Idx</th><th>Order</th><th>Op</th>"
-	   << "<th>Pre A0</th><th>Pre A1</th><th>Pre CAS</th><th>Pre A3</th><th>Pre A4</th>"
-	   << "</tr></thead><tbody><tr>";
-	write_op_summary_cells(os, id, oc);
-	os << "</tr></tbody></table>";
-}
+// removed unused helper write_single_op_table (was causing -Wunused-function warning)
 
 /**
  * @brief 輸出 Fault 覆蓋率總表（每個 fault 的 coverage 與被完整偵測的 TP 清單）
@@ -449,24 +546,18 @@ static void write_faults_coverage_table(std::ostream& os,
 	if (std::abs(cov - 0.0) < 1e-9) covCls = "cov0"; else if (std::abs(cov - 0.5) < 1e-9) covCls = "cov50";
 	os << "<tr><td>"<< fi <<"</td><td>"<< html_escape(f.fault_id) <<"</td><td class=\""<< covCls <<"\">"<< pss.str() <<"</td><td>";
 
-		// 已偵測與未偵測的 TP 分組顯示
-		std::unordered_map<size_t, vector<const SensDetHit*>> group;
+		// 已偵測與未偵測的 TP 分組顯示（以 tp_gid 作為唯一鍵）
 		std::unordered_set<size_t> detected_tp_set;
-		if (fd){
-			for (const auto& h : fd->hits){
-				group[h.tp_gid].push_back(&h);
-				detected_tp_set.insert(h.tp_gid);
-			}
-		}
+		if (fd){ for (const auto& gid : fd->detect_tp_gids) detected_tp_set.insert(gid); }
 		vector<size_t> undetected_tp_gids;
 		for (size_t tg=0; tg<tps.size(); ++tg){
 			if (tps[tg].parent_fault_id == f.fault_id && detected_tp_set.find(tg)==detected_tp_set.end())
 				undetected_tp_gids.push_back(tg);
 		}
 
-		// Detected
-		os << "<details><summary>Detected ("<< group.size() <<")</summary>";
-		for (const auto& [tp_gid, vecHits] : group){
+		// Detected（不再顯示 occurrences 細節）
+		os << "<details><summary>Detected ("<< detected_tp_set.size() <<")</summary>";
+		for (const auto& tp_gid : detected_tp_set){
 			const auto& tp = tps[tp_gid];
 			const RawFault* rf = nullptr;
 			if (auto rit = raw_index_by_id.find(tp.parent_fault_id); rit!=raw_index_by_id.end())
@@ -474,38 +565,6 @@ static void write_faults_coverage_table(std::ostream& os,
 
 			os << "<details><summary>#"<< tp_gid <<"</summary>";
 			write_tp_details(os, tp, rf, /*state*/true, /*sens*/true, /*detect*/true);
-
-			os << "<details><summary>Occurrences ("<< vecHits.size() <<")</summary>";
-			size_t occ_idx = 0;
-			for (const auto* ph : vecHits){
-				const auto& h = *ph;
-				int sens_end = h.sens_id;
-				int det_id   = h.det_id;
-				int start_id = sens_end;
-				if (!tp.ops_before_detect.empty())
-					start_id = sens_end - ((int)tp.ops_before_detect.size() - 1);
-
-				os << "<details><summary>#"<< (++occ_idx)
-				   <<": state@"<< (start_id>=0? std::to_string(start_id):string("-"))
-				   <<", sens@"<< sens_end <<", det@"<< det_id <<"</summary>";
-
-				if (start_id>=0 && start_id < (int)sim.op_table.size()){
-					os << "<details><summary>state op (#"<< start_id <<")</summary>";
-					write_single_op_table(os, start_id, sim.op_table[start_id]); os << "</details>";
-				} else { os << "<div class=\"muted\">state op: -</div>"; }
-
-				if (sens_end>=0 && sens_end < (int)sim.op_table.size()){
-					os << "<details><summary>sens op (#"<< sens_end <<")</summary>";
-					write_single_op_table(os, sens_end, sim.op_table[sens_end]); os << "</details>";
-				} else { os << "<div class=\"muted\">sens op: -</div>"; }
-
-				if (det_id>=0 && det_id < (int)sim.op_table.size()){
-					os << "<details><summary>detect op (#"<< det_id <<")</summary>";
-					write_single_op_table(os, det_id, sim.op_table[det_id]); os << "</details>";
-				} else { os << "<div class=\"muted\">detect op: -</div>"; }
-				os << "</details>";
-			}
-			os << "</details>"; // occurrences
 			os << "</details>"; // TP
 		}
 		os << "</details>"; // Detected
@@ -574,7 +633,8 @@ static void write_html_head(std::ostream& ofs, size_t faults_n, size_t tps_n, si
 	       ".badge{display:inline-block;background:#eef;border:1px solid #99c;border-radius:10px;padding:2px 8px;margin-left:6px;font-size:12px}"
 	       ".ops{text-align:left;white-space:nowrap}"
 	       ".state{font-family:monospace}"
-	       ".striped tbody tr:nth-child(even){background:#f7f9fc}"
+	       ".striped tbody tr.rowA{background:#ffffff}"
+	       ".striped tbody tr.rowB{background:#dce0eb}"
 	       ".faultHdr{margin-top:8px}"
 					 ".tpd{margin:6px 0 8px 12px;text-align:left}"
 					 ".cov0{color:#d33;font-weight:700}"
@@ -594,6 +654,9 @@ int main(int argc, char** argv){
 	if (!parse_args(argc, argv, opt)) return 2;
 
 	try {
+		// 計時工具
+		using clock = std::chrono::steady_clock;
+		auto to_ms = [](auto dur){ return std::chrono::duration_cast<std::chrono::milliseconds>(dur).count(); };
 		// 確保輸出目錄存在
 		try {
 			std::filesystem::path outp(opt.output_html);
@@ -605,6 +668,7 @@ int main(int argc, char** argv){
 		}
 
 		// 1) Faults → Fault → TPs
+		auto t1_start = clock::now();
 		FaultsJsonParser fparser; FaultNormalizer fnorm; TPGenerator tpg;
 
 		auto raw_faults = fparser.parse_file(opt.faults_json); // 讀 faults.json
@@ -624,6 +688,10 @@ int main(int argc, char** argv){
 			auto tps = tpg.generate(f);
 			all_tps.insert(all_tps.end(), tps.begin(), tps.end());
 		}
+		auto t1_end = clock::now();
+		cout << "[時間] 1) Faults→Fault→TPs: " << to_ms(t1_end - t1_start) << " ms"
+		     << " (raw_faults=" << raw_faults.size() << ", faults=" << faults.size()
+		     << ", TPs=" << all_tps.size() << ")\n";
 
 		// fault_id -> raw index map（供回查 raw primitive 字串）
 		std::unordered_map<string, size_t> raw_index_by_id;
@@ -631,12 +699,16 @@ int main(int argc, char** argv){
 		for (size_t i=0;i<raw_faults.size();++i) raw_index_by_id[raw_faults[i].fault_id]=i;
 
 		// 2) March tests（讀 MarchTest.json 並正規化）
+		auto t2_start = clock::now();
 		MarchTestJsonParser mparser;
 		auto raw_mts = mparser.parse_file(opt.march_json);
 
 		MarchTestNormalizer mnorm;
 		vector<MarchTest> marchTests; marchTests.reserve(raw_mts.size());
 		for (const auto& r : raw_mts) marchTests.push_back(mnorm.normalize(r));
+		auto t2_end = clock::now();
+		cout << "[時間] 2) 解析 March tests 並正規化: " << to_ms(t2_end - t2_start)
+		     << " ms (tests=" << marchTests.size() << ")\n";
 
 		// 3) 輸出 HTML
 		std::ofstream ofs(opt.output_html);
@@ -658,8 +730,11 @@ int main(int argc, char** argv){
 
 		// 逐個 March Test 模擬並輸出
 		FaultSimulator simulator;
+		auto t3_start = clock::now();
+		long long per_tests_sum_ms = 0;
 		for (size_t mi=0; mi<marchTests.size(); ++mi){
 			const auto& mt = marchTests[mi];
+			auto t_mt_start = clock::now();
 			auto sim = simulator.simulate(mt, faults, all_tps);
 
 			std::ostringstream covss; covss.setf(std::ios::fixed); covss<< std::setprecision(2) << (sim.total_coverage*100.0) << "%";
@@ -669,15 +744,23 @@ int main(int argc, char** argv){
 				<<"</summary>\n";
 
 			// 三種 CoverList 表格
-			write_state_cover_table(ofs, sim, all_tps, raw_faults, raw_index_by_id);
-			write_sens_cover_table(ofs, sim, all_tps, raw_faults, raw_index_by_id);
-			write_detect_cover_table(ofs, sim, all_tps, raw_faults, raw_index_by_id);
+			write_state_cover_table(ofs, sim, all_tps, raw_faults, raw_index_by_id, faults);
+			write_sens_cover_table(ofs, sim, all_tps, raw_faults, raw_index_by_id, faults);
+			write_detect_cover_table(ofs, sim, all_tps, raw_faults, raw_index_by_id, faults);
 
 			// Fault coverage summary
 			write_faults_coverage_table(ofs, sim, faults, all_tps, raw_faults, raw_index_by_id);
 
 			ofs << "</details>\n";
+			auto t_mt_end = clock::now();
+			auto ms = to_ms(t_mt_end - t_mt_start);
+			per_tests_sum_ms += ms;
+			cout << "[時間] 3) 模擬+輸出 March Test '" << mt.name << "': " << ms
+			     << " ms (ops=" << sim.op_table.size() << ")\n";
 		}
+		auto t3_end = clock::now();
+		cout << "[時間] 3) 全部 March tests 總耗時: " << to_ms(t3_end - t3_start)
+		     << " ms (單測累計=" << per_tests_sum_ms << " ms)\n";
 
 		ofs << "</body></html>\n";
 		ofs.close();

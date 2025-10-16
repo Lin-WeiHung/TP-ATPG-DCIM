@@ -579,22 +579,26 @@ inline bool DetectEngine::detect_match(const OpContext& op, const Detector& dec)
 }
 
 // ---------- 三階段結果與 Reporter ----------
-struct SensDetHit {
-    size_t tp_gid{};
-    int    sens_id{-1};
-    int    det_id{-1};
-};
-
 struct CoverLists {
     vector<size_t>     state_cover; // [op] -> tp_gid[]
     vector<size_t>     sens_cover;  // [op] -> tp_gid[]
-    vector<SensDetHit> det_cover;   // [op] -> hits
+    vector<size_t>     det_cover;   // [op] -> tp_gid[] (偵測命中)
 };
 
 struct FaultCoverageDetail {
     string fault_id;
-    double coverage{0.0}; // 0 / 0.5 / 1
-    vector<SensDetHit> hits;
+    // Backward-compatible overall coverage (kept equal to detect_coverage)
+    double coverage{0.0}; // 0 / 0.5 / 1 (alias of detect_coverage)
+
+    // Per-stage coverages
+    double state_coverage{0.0};  // computed like detect_coverage
+    double sens_coverage{0.0};   // computed like detect_coverage
+    double detect_coverage{0.0}; // previously "coverage"
+
+    // Per-stage hit collections (minimal info sufficient to compute coverage)
+    vector<size_t> state_tp_gids;  // TPs that state-covered this fault
+    vector<size_t> sens_tp_gids;   // TPs that sensitized this fault
+    vector<size_t> detect_tp_gids; // TPs that detected this fault
 };
 struct SimulationResult {
     double total_coverage{0.0};
@@ -626,17 +630,41 @@ inline void Reporter::build_fault_map(const vector<Fault>& faults, SimulationRes
         if (result.fault_detail_map.find(f.fault_id) != result.fault_detail_map.end()) {
             throw runtime_error("Reporter::build_fault_map: duplicate fault id: " + f.fault_id);
         }
-        result.fault_detail_map[f.fault_id] = FaultCoverageDetail{f.fault_id, 0.0, {}};
+        result.fault_detail_map[f.fault_id] = FaultCoverageDetail{f.fault_id,
+                                                                  /*coverage*/0.0,
+                                                                  /*state_coverage*/0.0,
+                                                                  /*sens_coverage*/0.0,
+                                                                  /*detect_coverage*/0.0,
+                                                                  /*state_tp_gids*/{},
+                                                                  /*sens_tp_gids*/{},
+                                                                  /*detect_tp_gids*/{}};
     }
 }
 
 inline void Reporter::analyze_fault_detail(const vector<TestPrimitive>& tps, SimulationResult& result) const {
     for (const auto& cover_list : result.cover_lists) {
-        const auto& det_hits = cover_list.det_cover;
-        for (const auto& hit : det_hits) {
-            auto it = result.fault_detail_map.find(tps[hit.tp_gid].parent_fault_id);
+        // 1) collect state phase tp gids
+        for (const auto& tp_gid : cover_list.state_cover) {
+            const auto& fid = tps[tp_gid].parent_fault_id;
+            auto it = result.fault_detail_map.find(fid);
             if (it != result.fault_detail_map.end()) {
-                it->second.hits.push_back(hit);
+                it->second.state_tp_gids.push_back(tp_gid);
+            }
+        }
+        // 2) collect sens phase tp gids
+        for (const auto& tp_gid : cover_list.sens_cover) {
+            const auto& fid = tps[tp_gid].parent_fault_id;
+            auto it = result.fault_detail_map.find(fid);
+            if (it != result.fault_detail_map.end()) {
+                it->second.sens_tp_gids.push_back(tp_gid);
+            }
+        }
+        // 3) collect detect tp gids
+        for (const auto& tp_gid : cover_list.det_cover) {
+            const auto& fid = tps[tp_gid].parent_fault_id;
+            auto it = result.fault_detail_map.find(fid);
+            if (it != result.fault_detail_map.end()) {
+                it->second.detect_tp_gids.push_back(tp_gid);
             }
         }
     }
@@ -646,35 +674,35 @@ inline void Reporter::compute_fault_coverage(const vector<Fault>& faults, const 
                                              SimulationResult& result) const {
     for (const auto& fault : faults) {
         auto& fault_detail = result.fault_detail_map[fault.fault_id];
-        if (fault_detail.hits.empty()) {
-            fault_detail.coverage = 0.0;
-            continue;
-        }
-        // 根據 hits 判斷 coverage
-        vector<bool> has_any;
-        vector<bool> has_lt;
-        vector<bool> has_gt;
-
-        for (const auto& hit : fault_detail.hits) {
-            const auto& tp = tps[hit.tp_gid];
-            if (tp.group == OrientationGroup::Single) {
-                has_any.push_back(true);
-            } else if (tp.group == OrientationGroup::A_LT_V) {
-                has_lt.push_back(true);
-            } else if (tp.group == OrientationGroup::A_GT_V) {
-                has_gt.push_back(true);
+        auto compute_cov_from_tp_gids = [&](const vector<size_t>& tp_gids) -> double {
+            bool has_any = false;
+            bool has_lt = false;
+            bool has_gt = false;
+            for (const auto& gid : tp_gids) {
+                const auto& tp = tps[gid];
+                if (tp.group == OrientationGroup::Single) has_any = true;
+                else if (tp.group == OrientationGroup::A_LT_V) has_lt = true;
+                else if (tp.group == OrientationGroup::A_GT_V) has_gt = true;
             }
-        }
-        if (fault.cell_scope == CellScope::SingleCell) {
-            fault_detail.coverage = has_any.empty() ? 0.0 : 1.0;
-        } else if (fault.cell_scope == CellScope::TwoCellCrossRow ||
-                     fault.cell_scope == CellScope::TwoCellSameRow ||
-                        fault.cell_scope == CellScope::TwoCellRowAgnostic) {
-            double cov = 0.0;
-            cov += has_lt.empty() ? 0.0 : 0.5;
-            cov += has_gt.empty() ? 0.0 : 0.5;
-            fault_detail.coverage = cov;
-        }
+            if (fault.cell_scope == CellScope::SingleCell) {
+                return has_any ? 1.0 : 0.0;
+            } else if (fault.cell_scope == CellScope::TwoCellCrossRow ||
+                       fault.cell_scope == CellScope::TwoCellSameRow ||
+                       fault.cell_scope == CellScope::TwoCellRowAgnostic) {
+                double cov = 0.0;
+                cov += has_lt ? 0.5 : 0.0;
+                cov += has_gt ? 0.5 : 0.0;
+                return cov;
+            }
+            return 0.0;
+        };
+    
+        fault_detail.state_coverage = compute_cov_from_tp_gids(fault_detail.state_tp_gids);
+        fault_detail.sens_coverage  = compute_cov_from_tp_gids(fault_detail.sens_tp_gids);
+        fault_detail.detect_coverage = compute_cov_from_tp_gids(fault_detail.detect_tp_gids);
+
+        // keep backward compatible overall coverage equal to detect coverage
+        fault_detail.coverage = fault_detail.detect_coverage;
     }
 }
 
@@ -723,7 +751,7 @@ inline SimulationResult FaultSimulator::simulate(const MarchTest& mt, const vect
 
             int det_id = detect_engine.cover(result.op_table, sens_end_id, tps[tp_gid]);
             if (det_id != -1) {
-                result.cover_lists[det_id].det_cover.push_back(SensDetHit{tp_gid, sens_end_id, det_id});
+                result.cover_lists[det_id].det_cover.push_back(tp_gid);
             }
         }
     }
