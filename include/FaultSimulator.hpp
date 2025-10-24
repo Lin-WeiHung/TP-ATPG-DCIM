@@ -202,6 +202,59 @@ inline Op MarchTestNormalizer::parse_op_token(const string& op_token) {
     return op;
 }
 
+const int KEY_BIT = 6;
+const int CSS_EXPANDED_NUM = 729; // 3^6
+
+const int KEY_CARRY = 3;
+inline size_t encode_to_key(const CrossState& input) {
+    size_t key = 0;
+    auto valto3 = [](Val v){ return (v==Val::Zero)?0u : (v==Val::One)?1u : 2u; };
+    key = key * KEY_CARRY + valto3(input.A1.D);
+    key = key * KEY_CARRY + valto3(input.A2_CAS.D);
+    key = key * KEY_CARRY + valto3(input.A3.D);
+    key = key * KEY_CARRY + valto3(input.A0.C);
+    key = key * KEY_CARRY + valto3(input.A2_CAS.C);
+    key = key * KEY_CARRY + valto3(input.A4.C);
+    return key; // 0..728
+}
+
+class CoverLUT {
+public:
+    CoverLUT();
+    const vector<size_t>& get_compatible_tp_keys(const CrossState& op_css) const;
+    const vector<size_t>& get_compatible_tp_keys_by_key(size_t op_css_key) const { return compatible_tp_keys[op_css_key]; }
+private:
+    vector<size_t> compatible_tp_keys[CSS_EXPANDED_NUM]; // for each store key, which input keys are compatible
+};
+
+inline CoverLUT::CoverLUT() {
+    size_t decoded_key[CSS_EXPANDED_NUM][KEY_BIT];
+    for (int key=0; key<CSS_EXPANDED_NUM; ++key) {
+        int k=key;
+        for (int i=KEY_BIT-1; i>=0; --i){ decoded_key[key][i]=k%3; k/=3; }
+    }
+    // 我們要支援：輸入 op_css_key -> 回傳所有 "tp_key"（可被覆蓋的 TP）
+    for (int op_css = 0; op_css < CSS_EXPANDED_NUM; ++op_css) {
+        for (int tp = 0; tp < CSS_EXPANDED_NUM; ++tp) {
+            bool compatible = true;
+            for (int k=0;k<KEY_BIT;++k){
+                // TP 位元是 0/1 則必須相等；TP 位元 2 表 don’t care
+                if (decoded_key[tp][k] != 2 && decoded_key[tp][k] != decoded_key[op_css][k]) {
+                    compatible = false; break;
+                }
+            }
+            if (compatible) {
+                // 注意：索引要用 op_css，內容塞進「tp_key」
+                compatible_tp_keys[op_css].push_back(tp);
+            }
+        }
+    }
+}
+
+inline const vector<size_t>& CoverLUT::get_compatible_tp_keys(const CrossState& op_css) const {
+    return compatible_tp_keys[encode_to_key(op_css)];
+}
+
 // ==============================
 //  March-based Fault Simulator (OP-driven + 729x729 LUT)
 //  -- append right after MarchTestNormalizer --
@@ -214,6 +267,7 @@ struct OpContext {
     AddrOrder order; // address order of the element
 
     CrossState pre_state; // state before this op
+    size_t pre_state_key{0}; // cached key for pre_state (0..728)
 
     int next_op_index{-1}; // index of next op in the same element, or -1 if last
     int head_same{-1}; // index of first op in the same element, or -1 if last
@@ -380,6 +434,8 @@ inline void OpTableBuilder::derive_pre_state_in_same_row(vector<OpContext>& opt)
             opt[id].pre_state.A2_CAS.C = c2;    // C2
             opt[id].pre_state.A4.C = c4;        // C4
             opt[id].pre_state.enforceDCrule();
+            // 順手計算 pre_state 的 key 並快取
+            opt[id].pre_state_key = encode_to_key(opt[id].pre_state);
             // 遇此 op 之後，更新影響下一 op 的狀態
             const Op& opv = opt[id].op;
             if(opv.kind == OpKind::Write){
@@ -392,69 +448,18 @@ inline void OpTableBuilder::derive_pre_state_in_same_row(vector<OpContext>& opt)
     }
 }
 
-const int KEY_BIT = 6;
-const int CSS_EXPANDED_NUM = 729; // 3^6
-
-inline size_t encode_to_key(const CrossState& input) {
-    size_t key = 0;
-    auto valto3 = [](Val v){ return (v==Val::Zero)?0u : (v==Val::One)?1u : 2u; };
-    key = key * 3 + valto3(input.A1.D);
-    key = key * 3 + valto3(input.A2_CAS.D);
-    key = key * 3 + valto3(input.A3.D);
-    key = key * 3 + valto3(input.A0.C);
-    key = key * 3 + valto3(input.A2_CAS.C);
-    key = key * 3 + valto3(input.A4.C);
-    return key; // 0..728
-}
-
-class CoverLUT {
-public:
-    CoverLUT();
-    const vector<size_t>& get_compatible_tp_keys(const CrossState& op_css) const;
-private:
-    vector<size_t> compatible_tp_keys[CSS_EXPANDED_NUM]; // for each store key, which input keys are compatible
-};
-
-inline CoverLUT::CoverLUT() {
-    size_t decoded_key[CSS_EXPANDED_NUM][KEY_BIT];
-    for (int key=0; key<CSS_EXPANDED_NUM; ++key) {
-        int k=key;
-        for (int i=KEY_BIT-1; i>=0; --i){ decoded_key[key][i]=k%3; k/=3; }
-    }
-    // 我們要支援：輸入 op_css_key -> 回傳所有 "tp_key"（可被覆蓋的 TP）
-    for (int op_css = 0; op_css < CSS_EXPANDED_NUM; ++op_css) {
-        for (int tp = 0; tp < CSS_EXPANDED_NUM; ++tp) {
-            bool compatible = true;
-            for (int k=0;k<KEY_BIT;++k){
-                // TP 位元是 0/1 則必須相等；TP 位元 2 表 don’t care
-                if (decoded_key[tp][k] != 2 && decoded_key[tp][k] != decoded_key[op_css][k]) {
-                    compatible = false; break;
-                }
-            }
-            if (compatible) {
-                // 注意：索引要用 op_css，內容塞進「tp_key」
-                compatible_tp_keys[op_css].push_back(tp);
-            }
-        }
-    }
-}
-
-inline const vector<size_t>& CoverLUT::get_compatible_tp_keys(const CrossState& op_css) const {
-    return compatible_tp_keys[encode_to_key(op_css)];
-}
-
 class StateCoverEngine {
 public:
     void build_tp_buckets(const vector<TestPrimitive>& tps);
-    vector<size_t> cover(const CrossState& op_css);
+    vector<size_t> cover(size_t op_css_key);
 private:
     CoverLUT lut;
     array<vector<size_t>, CSS_EXPANDED_NUM> tp_buckets; // tp_buckets[tp_key] -> list of test pattern indices
 };
 
-inline vector<size_t> StateCoverEngine::cover(const CrossState& op_css) {
+inline vector<size_t> StateCoverEngine::cover(size_t op_css_key) {
     vector<size_t> out;
-    const auto& tp_keys = lut.get_compatible_tp_keys(op_css);
+    const auto& tp_keys = lut.get_compatible_tp_keys_by_key(op_css_key);
     for (int key : tp_keys) {
         const auto& v = tp_buckets[key];
         out.insert(out.end(), v.begin(), v.end());
@@ -601,6 +606,9 @@ struct FaultCoverageDetail {
     vector<size_t> detect_tp_gids; // TPs that detected this fault
 };
 struct SimulationResult {
+    double state_coverage{0.0};
+    double sens_coverage{0.0};
+    double detect_coverage{0.0};
     double total_coverage{0.0};
     vector<CoverLists> cover_lists; // per op
     vector<OpContext> op_table; // for reference
@@ -614,7 +622,7 @@ private:
     void build_fault_map(const vector<Fault>& faults, SimulationResult& result) const;
     void analyze_fault_detail(const vector<TestPrimitive>& tps, SimulationResult& result) const;
     void compute_fault_coverage(const vector<Fault>& faults, const vector<TestPrimitive>& tps, SimulationResult& result) const;
-    void compute_total_coverage(SimulationResult& result) const;
+    void compute_final_coverage(SimulationResult& result) const;
 };
 
 inline void Reporter::build(const vector<TestPrimitive>& tps, const vector<Fault>& faults,
@@ -622,7 +630,7 @@ inline void Reporter::build(const vector<TestPrimitive>& tps, const vector<Fault
     build_fault_map(faults, result);
     analyze_fault_detail(tps, result);
     compute_fault_coverage(faults, tps, result);
-    compute_total_coverage(result);
+    compute_final_coverage(result);
 }
 
 inline void Reporter::build_fault_map(const vector<Fault>& faults, SimulationResult& result) const {
@@ -706,16 +714,26 @@ inline void Reporter::compute_fault_coverage(const vector<Fault>& faults, const 
     }
 }
 
-inline void Reporter::compute_total_coverage(SimulationResult& result) const {
+inline void Reporter::compute_final_coverage(SimulationResult& result) const {
     if (result.fault_detail_map.empty()) {
-        result.total_coverage = 0.0;
+        result.state_coverage = result.sens_coverage = result.detect_coverage = result.total_coverage = 0.0;
         return;
     }
-    double sum = 0.0;
-    for (const auto& [fid, detail] : result.fault_detail_map) {
-        sum += detail.coverage;
+    double sum_state = 0.0;
+    double sum_sens = 0.0;
+    double sum_detect = 0.0;
+    for (const auto& kv : result.fault_detail_map) {
+        const auto& detail = kv.second;
+        sum_state += detail.state_coverage;
+        sum_sens += detail.sens_coverage;
+        sum_detect += detail.detect_coverage;
     }
-    result.total_coverage = sum / result.fault_detail_map.size();
+    double n = static_cast<double>(result.fault_detail_map.size());
+    result.state_coverage  = sum_state / n;
+    result.sens_coverage   = sum_sens  / n;
+    result.detect_coverage = sum_detect / n;
+    // total coverage follows detect coverage
+    result.total_coverage = result.detect_coverage;
 }
 
 class FaultSimulator {
@@ -741,7 +759,7 @@ inline SimulationResult FaultSimulator::simulate(const MarchTest& mt, const vect
     result.cover_lists.resize(result.op_table.size());
     for (size_t op_id = 0; op_id < result.op_table.size(); ++op_id) {
         // 1) State cover
-        result.cover_lists[op_id].state_cover = state_cover_engine.cover(result.op_table[op_id].pre_state);
+        result.cover_lists[op_id].state_cover = state_cover_engine.cover(result.op_table[op_id].pre_state_key);
 
         // 2) Sens + Detect 必須串在一起檢查
         for (size_t tp_gid : result.cover_lists[op_id].state_cover) {

@@ -1,12 +1,19 @@
-#pragma once
 // MarchSynth.hpp
 // Simplified Greedy March Test Generator (no Beam, no Cache).
 // -------------------------------------------------------------
 // - 直接呼叫 FaultSimulator::simulate() 取得真實結果。
-// - 每步列舉 {W0, W1, R0, R1} → 模擬 → 比對 before/after → 挑 gain 最高。
 // - 無 SequenceHasher、無 SimCache。
 // - 關閉條件：若 Δstate/Δsens/Δdetect 全 0，或僅 detect>0 且 defer_detect_only=true。
 // - 寫法：Header-style（介面＋inline 實作），SRP原則，每個函式只負責一件事。
+
+// 編譯:
+// g++ -std=c++17 -O2 -Wall -Wextra -Iinclude src/ATPG.cpp -o atpg_demo
+// 執行:
+// ./atpg_demo input/S_C_faults.json | head -n 60
+// 合併:
+// g++ -std=c++17 -O2 -Wall -Wextra -Iinclude src/ATPG.cpp -o atpg_demo && ./atpg_demo input/S_C_faults.json | head -n 60
+
+#pragma once
 
 #include <string>
 #include <vector>
@@ -49,7 +56,7 @@ enum class GenOp {
 struct SynthConfig {
     int alpha_state  = 1;     ///< Δstate 權重
     int beta_sens    = 1;     ///< Δsens 權重
-    int gamma_detect = 1;     ///< Δdetect 權重
+    int gamma_detect = 4;     ///< Δdetect 權重
     int lambda_mask  = 0;     ///< 遮蔽懲罰（暫時不用）
     int mu_cost      = 1;     ///< 每放一個 op 的固定成本
     bool defer_detect_only = true; ///< 純偵測期→關閉 element
@@ -159,9 +166,9 @@ private:
 // ================================================================
 
 struct Delta {
-    int dState{0};
-    int dSens{0};
-    int dDetect{0};
+    double dState{0.0};
+    double dSens{0.0};
+    double dDetect{0.0};
     double dCoverage{0.0};
 };
 
@@ -174,39 +181,24 @@ public:
 
     Delta compute(const SimulationResult& before, const SimulationResult& after) const {
         Delta d;
-        d.dState    = count_state(after) - count_state(before);
-        d.dSens     = count_sens(after)  - count_sens(before);
-        d.dDetect   = count_det(after)   - count_det(before);
+        d.dState    = after.state_coverage - before.state_coverage;
+        d.dSens     = after.sens_coverage  - before.sens_coverage;
+        d.dDetect   = after.detect_coverage - before.detect_coverage;
         d.dCoverage = after.total_coverage - before.total_coverage;
         return d;
     }
 
-    int gain(const Delta& d) const {
-        return cfg_.alpha_state  * d.dState
-             + cfg_.beta_sens    * d.dSens
-             + cfg_.gamma_detect * d.dDetect
-             - cfg_.lambda_mask  * 0  // (暫時不用)
-             - cfg_.mu_cost;
+    double gain(const Delta& d) const {
+        // 以 double 計分，維持整數型權重亦可正確隱式轉型
+        return static_cast<double>(cfg_.alpha_state)  * d.dState
+             + static_cast<double>(cfg_.beta_sens)    * d.dSens
+             + static_cast<double>(cfg_.gamma_detect) * d.dDetect
+             - static_cast<double>(cfg_.lambda_mask)  * 0.0  // (暫時不用)
+             - static_cast<double>(cfg_.mu_cost);
     }
 
 private:
     SynthConfig cfg_;
-
-    static int count_state(const SimulationResult& r) {
-        int s = 0;
-        for (const auto& cl : r.cover_lists) s += static_cast<int>(cl.state_cover.size());
-        return s;
-    }
-    static int count_sens(const SimulationResult& r) {
-        int s = 0;
-        for (const auto& cl : r.cover_lists) s += static_cast<int>(cl.sens_cover.size());
-        return s;
-    }
-    static int count_det(const SimulationResult& r) {
-        int s = 0;
-        for (const auto& cl : r.cover_lists) s += static_cast<int>(cl.det_cover.size());
-        return s;
-    }
 };
 
 // ================================================================
@@ -219,15 +211,17 @@ public:
 
     bool should_close(const vector<Delta>& deltas) const {
         if (deltas.empty()) return false;
-        int maxS = 0, maxZ = 0, maxD = 0;
+        // 使用 double 並加入容忍度，避免浮點誤差導致邏輯偏差
+        double maxS = 0.0, maxZ = 0.0, maxD = 0.0;
         for (const auto& d : deltas) {
             maxS = std::max(maxS, d.dState);
             maxZ = std::max(maxZ, d.dSens);
             maxD = std::max(maxD, d.dDetect);
         }
-        const bool all_zero = (maxS == 0 && maxZ == 0 && maxD == 0);
+        const double eps = 1e-12;
+        const bool all_zero = (maxS <= eps && maxZ <= eps && maxD <= eps);
         if (all_zero) return true;
-        if (cfg_.defer_detect_only && maxS==0 && maxZ==0 && maxD>0) return true;
+        if (cfg_.defer_detect_only && maxS <= eps && maxZ <= eps) return true;
         return false;
     }
 
@@ -265,7 +259,7 @@ public:
                                               GenOp::C_0_0_0, GenOp::C_0_0_1, GenOp::C_0_1_0, GenOp::C_0_1_1,
                                               GenOp::C_1_0_0, GenOp::C_1_0_1, GenOp::C_1_1_0, GenOp::C_1_1_1 };
             vector<Delta> deltas; deltas.reserve(candidates.size());
-            struct CandEval { GenOp gop; int gain; SimulationResult after; Delta d; };
+            struct CandEval { GenOp gop; double gain; SimulationResult after; Delta d; };
             vector<CandEval> evals; evals.reserve(candidates.size());
 
             // 模擬每個候選
@@ -273,7 +267,7 @@ public:
                 MarchTest mt_after = append_op(get_cur_mt, cur_order, gop);
                 SimulationResult after = simulator_.run(mt_after);
                 Delta d = scorer_.compute(cur_sim, after);
-                int g = scorer_.gain(d);
+                double g = scorer_.gain(d);
                 deltas.push_back(d);
                 evals.push_back({gop, g, after, d});
             }

@@ -87,7 +87,7 @@ static void test_StateCoverEngine(){
     StateCoverEngine eng; CrossState s{}; s.enforceDCrule();
     TestPrimitive tp; tp.state = s; vector<TestPrimitive> tps{tp};
     eng.build_tp_buckets(tps);
-    auto ids = eng.cover(s);
+    auto ids = eng.cover(encode_to_key(s));
     CHECK(ids.size()==1 && ids[0]==0, "exact state hit");
 }
 
@@ -116,7 +116,7 @@ static void test_DetectEngine(){
 
 static void test_Reporter(){
     cout << "[Class] Reporter\n";
-    Reporter r; SimulationResult res; CoverLists cl; cl.det_cover.push_back(SensDetHit{.tp_gid=0,.sens_id=0,.det_id=0}); res.cover_lists={cl};
+    Reporter r; SimulationResult res; CoverLists cl; cl.det_cover.push_back(0); res.cover_lists={cl};
     Fault f; f.fault_id="F1"; f.cell_scope=CellScope::SingleCell; f.category=Category::MustRead; vector<Fault> faults{f};
     TestPrimitive tp; tp.parent_fault_id="F1"; vector<TestPrimitive> tps{tp};
     r.build(tps, faults, res);
@@ -150,7 +150,7 @@ static void test_DiffScorer(){
     auto ra = sa.run(a); auto rb = sa.run(b);
     auto d = scorer.compute(ra, rb);
     // Only validate that compute/gain execute without throwing
-    (void)d; int g = scorer.gain(d); (void)g;
+    (void)d; double g = scorer.gain(d); (void)g;
     CHECK(true, "diff computed and gain evaluated");
 }
 

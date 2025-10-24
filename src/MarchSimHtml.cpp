@@ -308,12 +308,14 @@ static void write_tp_details(std::ostream& os, const TestPrimitive& tp,
  */
 static void write_op_summary_cells(std::ostream& os, size_t i, const OpContext& oc){
 	os << "<td>"<< i <<"</td><td>"<< (oc.elem_index + 1) <<"</td><td>"<< (oc.index_within_elem + 1)
-	   <<"</td><td>"<< addr2s(oc.order) <<"</td><td>"<< op_repr(oc.op) <<"</td>";
+	   <<"</td><td>"<< addr2s(oc.order) <<"</td>";
+	// Place pre-state cells before Op
 	os << "<td class=\"state\">"<< html_escape(state_cell(oc.pre_state.A0.D,     oc.pre_state.A0.C))     <<"</td>";
 	os << "<td class=\"state\">"<< html_escape(state_cell(oc.pre_state.A1.D,     oc.pre_state.A1.C))     <<"</td>";
 	os << "<td class=\"state\">"<< html_escape(state_cell(oc.pre_state.A2_CAS.D, oc.pre_state.A2_CAS.C)) <<"</td>";
 	os << "<td class=\"state\">"<< html_escape(state_cell(oc.pre_state.A3.D,     oc.pre_state.A3.C))     <<"</td>";
 	os << "<td class=\"state\">"<< html_escape(state_cell(oc.pre_state.A4.D,     oc.pre_state.A4.C))     <<"</td>";
+	os << "<td>"<< op_repr(oc.op) <<"</td>";
 }
 
 /**
@@ -321,8 +323,8 @@ static void write_op_summary_cells(std::ostream& os, size_t i, const OpContext& 
  */
 static inline void write_common_table_head(std::ostream& os){
 	os << "<table class=\"striped\"><thead><tr>"
-	   << "<th>#</th><th>Elem</th><th>Idx</th><th>Order</th><th>Op</th>"
-	<< "<th>Pre A0</th><th>Pre A1</th><th>Pre CAS</th><th>Pre A3</th><th>Pre A4</th><th>Coverage</th><th>TPs</th>"
+	<< "<th>#</th><th>Elem</th><th>Idx</th><th>Order</th>"
+	<< "<th>Pre A0</th><th>Pre A1</th><th>Pre CAS</th><th>Pre A3</th><th>Pre A4</th><th>Op</th><th>Coverage</th><th>TPs</th>"
 	   << "</tr></thead><tbody>";
 }
 
@@ -655,8 +657,8 @@ int main(int argc, char** argv){
 
 	try {
 		// 計時工具
-		using clock = std::chrono::steady_clock;
-		auto to_ms = [](auto dur){ return std::chrono::duration_cast<std::chrono::milliseconds>(dur).count(); };
+	using clock = std::chrono::steady_clock;
+	auto to_us = [](auto dur){ return std::chrono::duration_cast<std::chrono::microseconds>(dur).count(); };
 		// 確保輸出目錄存在
 		try {
 			std::filesystem::path outp(opt.output_html);
@@ -688,8 +690,8 @@ int main(int argc, char** argv){
 			auto tps = tpg.generate(f);
 			all_tps.insert(all_tps.end(), tps.begin(), tps.end());
 		}
-		auto t1_end = clock::now();
-		cout << "[時間] 1) Faults→Fault→TPs: " << to_ms(t1_end - t1_start) << " ms"
+	auto t1_end = clock::now();
+	cout << "[時間] 1) Faults→Fault→TPs: " << to_us(t1_end - t1_start) << " us"
 		     << " (raw_faults=" << raw_faults.size() << ", faults=" << faults.size()
 		     << ", TPs=" << all_tps.size() << ")\n";
 
@@ -706,9 +708,9 @@ int main(int argc, char** argv){
 		MarchTestNormalizer mnorm;
 		vector<MarchTest> marchTests; marchTests.reserve(raw_mts.size());
 		for (const auto& r : raw_mts) marchTests.push_back(mnorm.normalize(r));
-		auto t2_end = clock::now();
-		cout << "[時間] 2) 解析 March tests 並正規化: " << to_ms(t2_end - t2_start)
-		     << " ms (tests=" << marchTests.size() << ")\n";
+	   auto t2_end = clock::now();
+	   cout << "[時間] 2) 解析 March tests 並正規化: " << to_us(t2_end - t2_start)
+		   << " us (tests=" << marchTests.size() << ")\n";
 
 		// 3) 輸出 HTML
 		std::ofstream ofs(opt.output_html);
@@ -731,11 +733,14 @@ int main(int argc, char** argv){
 		// 逐個 March Test 模擬並輸出
 		FaultSimulator simulator;
 		auto t3_start = clock::now();
-		long long per_tests_sum_ms = 0;
+	long long per_tests_sum_us = 0;
 		for (size_t mi=0; mi<marchTests.size(); ++mi){
 			const auto& mt = marchTests[mi];
 			auto t_mt_start = clock::now();
 			auto sim = simulator.simulate(mt, faults, all_tps);
+			auto t_mt_end = clock::now();
+			auto us = to_us(t_mt_end - t_mt_start);
+			per_tests_sum_us += us;
 
 			std::ostringstream covss; covss.setf(std::ios::fixed); covss<< std::setprecision(2) << (sim.total_coverage*100.0) << "%";
 			ofs << "<details open><summary>March Test: "<<html_escape(mt.name)
@@ -752,15 +757,13 @@ int main(int argc, char** argv){
 			write_faults_coverage_table(ofs, sim, faults, all_tps, raw_faults, raw_index_by_id);
 
 			ofs << "</details>\n";
-			auto t_mt_end = clock::now();
-			auto ms = to_ms(t_mt_end - t_mt_start);
-			per_tests_sum_ms += ms;
-			cout << "[時間] 3) 模擬+輸出 March Test '" << mt.name << "': " << ms
-			     << " ms (ops=" << sim.op_table.size() << ")\n";
+			
+		  cout << "[時間] 3) 模擬+輸出 March Test '" << mt.name << "': " << us
+			  << " us (ops=" << sim.op_table.size() << ")\n";
 		}
 		auto t3_end = clock::now();
-		cout << "[時間] 3) 全部 March tests 總耗時: " << to_ms(t3_end - t3_start)
-		     << " ms (單測累計=" << per_tests_sum_ms << " ms)\n";
+	   cout << "[時間] 3) 執行時間(包含撰寫報告)總耗時: " << to_us(t3_end - t3_start)
+		   << " us (單測累計=" << per_tests_sum_us << " us)\n";
 
 		ofs << "</body></html>\n";
 		ofs.close();
