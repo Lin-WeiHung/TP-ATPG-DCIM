@@ -731,7 +731,7 @@ int main(int argc, char** argv){
 		write_fault_anchors(ofs, raw_faults);
 
 		// 逐個 March Test 模擬並輸出
-		FaultSimulator simulator;
+		FaultSimulator_sensitive_version simulator;
 		auto t3_start = clock::now();
 	long long per_tests_sum_us = 0;
 		for (size_t mi=0; mi<marchTests.size(); ++mi){

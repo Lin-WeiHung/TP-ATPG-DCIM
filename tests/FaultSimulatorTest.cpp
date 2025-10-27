@@ -321,8 +321,8 @@ static void test_Reporter(){
 	Fault f; f.fault_id="F1"; f.cell_scope=CellScope::SingleCell; f.category=Category::MustRead;
 	TestPrimitive tp; tp.parent_fault_id="F1"; tp.group=OrientationGroup::Single;
 	vector<Fault> faults{f}; vector<TestPrimitive> tps{tp};
-	CoverLists cl; cl.det_cover.push_back(SensDetHit{.tp_gid=0,.sens_id=0,.det_id=1});
-	vector<CoverLists> cls{cl}; Reporter r; SimulationResult res; res.cover_lists = cls;
+	RawCoverLists cl; cl.det_cover.push_back(SensDetHit{.tp_gid=0,.sens_id=0,.det_id=1});
+	vector<RawCoverLists> cls{cl}; Reporter r; SimulationResult res; res.cover_lists = cls;
 	r.build(tps, faults, res);
 	CHECK(res.fault_detail_map.count("F1")==1, "fault detail exists");
 	CHECK(res.fault_detail_map["F1"].coverage==1.0, "single-cell any hit => coverage=1.0");

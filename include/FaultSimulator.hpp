@@ -23,20 +23,17 @@ using std::array;
 using std::uint8_t;
 using std::unordered_map;
 using std::pair;
+using std::to_string;
 
-// A named March test consisting of multiple elements
 struct RawMarchTest {
     string name;
     string pattern;
 };
 
-// Parser for March tests (JSON -> unordered_map<name, MarchTest>)
 class MarchTestJsonParser {
 public:
     vector<RawMarchTest> parse_file(const string& path);
 };
-
-// ---- inline implementation ----
 
 inline vector<RawMarchTest> MarchTestJsonParser::parse_file(const string& path) {
     ifstream ifs(path);
@@ -260,6 +257,8 @@ inline const vector<size_t>& CoverLUT::get_compatible_tp_keys(const CrossState& 
 //  -- append right after MarchTestNormalizer --
 // ==============================
 
+using OpId = int;  // 操作索引
+
 struct OpContext {
     Op op; // operation
     int elem_index; // which MarchElement this op belongs to
@@ -269,9 +268,9 @@ struct OpContext {
     CrossState pre_state; // state before this op
     size_t pre_state_key{0}; // cached key for pre_state (0..728)
 
-    int next_op_index{-1}; // index of next op in the same element, or -1 if last
-    int head_same{-1}; // index of first op in the same element, or -1 if last
-    int head_next{-1}; // index of first op in the next element, or -1 if last
+    OpId next_op_index{-1}; // index of next op in the same element, or -1 if last
+    OpId head_same{-1}; // index of first op in the same element, or -1 if last
+    OpId head_next{-1}; // index of first op in the next element, or -1 if last
 };
 
 class OpTableBuilder {
@@ -448,17 +447,19 @@ inline void OpTableBuilder::derive_pre_state_in_same_row(vector<OpContext>& opt)
     }
 }
 
+using TpGid = size_t; // Test Primitive global ID
+
 class StateCoverEngine {
 public:
     void build_tp_buckets(const vector<TestPrimitive>& tps);
-    vector<size_t> cover(size_t op_css_key);
+    vector<TpGid> cover(size_t op_css_key);
 private:
     CoverLUT lut;
-    array<vector<size_t>, CSS_EXPANDED_NUM> tp_buckets; // tp_buckets[tp_key] -> list of test pattern indices
+    array<vector<TpGid>, CSS_EXPANDED_NUM> tp_buckets; // tp_buckets[tp_key] -> list of test pattern indices
 };
 
-inline vector<size_t> StateCoverEngine::cover(size_t op_css_key) {
-    vector<size_t> out;
+inline vector<TpGid> StateCoverEngine::cover(size_t op_css_key) {
+    vector<TpGid> out;
     const auto& tp_keys = lut.get_compatible_tp_keys_by_key(op_css_key);
     for (int key : tp_keys) {
         const auto& v = tp_buckets[key];
@@ -468,7 +469,7 @@ inline vector<size_t> StateCoverEngine::cover(size_t op_css_key) {
 }
 
 inline void StateCoverEngine::build_tp_buckets(const vector<TestPrimitive>& tps) {
-    tp_buckets.fill(vector<size_t>()); // clear
+    tp_buckets.fill(vector<TpGid>()); // clear
     for (size_t i = 0; i < tps.size(); ++i) {
         int tp_key = encode_to_key(tps[i].state);
         tp_buckets[tp_key].push_back(i);
@@ -478,12 +479,12 @@ inline void StateCoverEngine::build_tp_buckets(const vector<TestPrimitive>& tps)
 class SensEngine {
 public:
     // 成功回傳完成的 op_id；失敗回 -1
-    int cover(const vector<OpContext>& opt, int opt_begin, const TestPrimitive& tp) const;
+    OpId cover(const vector<OpContext>& opt, OpId opt_begin, const TestPrimitive& tp) const;
 private:
     bool op_match(const OpContext& march_test_op, const Op& tp_op) const;
 };
 
-inline int SensEngine::cover(const vector<OpContext>& opt, int opt_begin, const TestPrimitive& tp) const {
+inline OpId SensEngine::cover(const vector<OpContext>& opt, OpId opt_begin, const TestPrimitive& tp) const {
     const int tp_size = static_cast<int>(tp.ops_before_detect.size());
     if (tp_size == 0) return opt_begin;                  // 無 sensitizer 序列：不前進、保留 state cover 位置
 
@@ -516,20 +517,27 @@ inline bool SensEngine::op_match(const OpContext& march_test_op, const Op& tp_op
     return true;
 }
 
+struct DetectOutcome {
+  enum class Status { Found, MaskedOnD, NoDetectorReachable };
+  Status status{Status::NoDetectorReachable};
+  int det_op{-1};
+  int mask_at_op{-1}; // 第一個對 D 造成遮蔽的 op
+};
+
 class DetectEngine {
 public:
-    int cover(const vector<OpContext>& opt, int sens_end_id, const TestPrimitive& tp) const;
-private:
+    DetectOutcome cover(const vector<OpContext>& opt, OpId sens_end_id, const TestPrimitive& tp) const;
+protected:
     bool detect_match(const OpContext& op, const Detector& dec) const;
     bool is_masking_on_D(const OpContext& op) const { return (op.op.kind == OpKind::Write); }
 };
 
-inline int DetectEngine::cover(const vector<OpContext>& opt, int sens_end_id, const TestPrimitive& tp) const {
-    if (sens_end_id < 0 || sens_end_id >= (int)opt.size()) return -1;
-    if (tp.R_has_value) return sens_end_id;
+inline DetectOutcome DetectEngine::cover(const vector<OpContext>& opt, OpId sens_end_id, const TestPrimitive& tp) const {
+    if (sens_end_id < 0 || sens_end_id >= (OpId)opt.size()) return DetectOutcome{};
+    if (tp.R_has_value) return DetectOutcome{DetectOutcome::Status::Found, sens_end_id, -1}; // 特例：R有值-偵測成功
 
     // 1) 先把 # / ^ / ; 轉成錨點（原本定位點）
-    int anchor = -1;
+    OpId anchor = -1;
     switch (tp.detector.pos) {
         case PositionMark::Adjacent:
             // 無 sensitizer 時，偵測與 state 同一個 op；有 sensitizer 時取同 element 的下一個 op
@@ -542,30 +550,30 @@ inline int DetectEngine::cover(const vector<OpContext>& opt, int sens_end_id, co
             anchor = opt[sens_end_id].head_next;
             break;
     }
-    if (anchor < 0 || anchor >= (int)opt.size()) return -1;
+    if (anchor < 0 || anchor >= (OpId)opt.size()) return DetectOutcome{};
 
     // 2) 決定是否啟用「往後掃描」模式
     //    僅當 F 在 D 面有具體值時（對應到 detector.kind==Read 且 value!=X）才啟用。
     if (!tp.F_has_value) {
         // 舊語意：只在錨點做一次比對
-        return detect_match(opt[anchor], tp.detector) ? anchor : -1;
+        return detect_match(opt[anchor], tp.detector) ? DetectOutcome{DetectOutcome::Status::Found, anchor, -1} : DetectOutcome{};
     }
 
     // 3) 新語意（F 有值）：自錨點起往後掃描，直到找到 detector 或被 mask
     //    這裡的「往後」是針對同一目標 cell 的操作序列（同一地址的執行序），
     //    因 opt 是 per-address/element 的攤平成序關係（參見 OpTableBuilder 的鄰接建構）。:contentReference[oaicite:3]{index=3}
-    for (int i = anchor; i < (int)opt.size(); ++i) {
+    for (OpId i = anchor; i < (OpId)opt.size(); ++i) {
         // 先檢查遮罩：一旦遇到會寫 D 的操作，代表 fault effect 被洗掉 → 失敗
         if (is_masking_on_D(opt[i])) {
-            return -1;
+            return DetectOutcome{DetectOutcome::Status::Found, -1, i}; // mask at i
         }
         // 符合 detector（例如 R0/R1）→ 成功
         if (detect_match(opt[i], tp.detector)) {
-            return i;
+            return DetectOutcome{DetectOutcome::Status::Found, i, -1};
         }
         // 否則持續往後找下一個 op
     }
-    return -1; // 沒找到 detector 且未被寫 D 擋到 → 視為未偵測
+    return DetectOutcome{}; // 沒找到 detector 且未被寫 D 擋到 → 視為未偵測
 }
 
 
@@ -584,10 +592,10 @@ inline bool DetectEngine::detect_match(const OpContext& op, const Detector& dec)
 }
 
 // ---------- 三階段結果與 Reporter ----------
-struct CoverLists {
-    vector<size_t>     state_cover; // [op] -> tp_gid[]
-    vector<size_t>     sens_cover;  // [op] -> tp_gid[]
-    vector<size_t>     det_cover;   // [op] -> tp_gid[] (偵測命中)
+struct RawCoverLists {
+    vector<TpGid>     state_cover; // [op] -> tp_gid[]
+    vector<TpGid>     sens_cover;  // [op] -> tp_gid[]
+    vector<TpGid>     det_cover;   // [op] -> tp_gid[] (偵測命中)
 };
 
 struct FaultCoverageDetail {
@@ -601,16 +609,16 @@ struct FaultCoverageDetail {
     double detect_coverage{0.0}; // previously "coverage"
 
     // Per-stage hit collections (minimal info sufficient to compute coverage)
-    vector<size_t> state_tp_gids;  // TPs that state-covered this fault
-    vector<size_t> sens_tp_gids;   // TPs that sensitized this fault
-    vector<size_t> detect_tp_gids; // TPs that detected this fault
+    vector<TpGid> state_tp_gids;  // TPs that state-covered this fault
+    vector<TpGid> sens_tp_gids;   // TPs that sensitized this fault
+    vector<TpGid> detect_tp_gids; // TPs that detected this fault
 };
 struct SimulationResult {
     double state_coverage{0.0};
     double sens_coverage{0.0};
     double detect_coverage{0.0};
     double total_coverage{0.0};
-    vector<CoverLists> cover_lists; // per op
+    vector<RawCoverLists> cover_lists; // per op
     vector<OpContext> op_table; // for reference
     unordered_map<string, FaultCoverageDetail> fault_detail_map; 
 };
@@ -739,7 +747,7 @@ inline void Reporter::compute_final_coverage(SimulationResult& result) const {
 class FaultSimulator {
 public:
     SimulationResult simulate(const MarchTest& mt, const vector<Fault>& faults, const vector<TestPrimitive>& tps);
-private:
+protected:
     OpTableBuilder op_table_builder;
     StateCoverEngine state_cover_engine;
     SensEngine sens_engine;
@@ -767,7 +775,7 @@ inline SimulationResult FaultSimulator::simulate(const MarchTest& mt, const vect
             if (sens_end_id == -1) continue;                // 沒致敏就不做偵測
             result.cover_lists[sens_end_id].sens_cover.push_back(tp_gid);
 
-            int det_id = detect_engine.cover(result.op_table, sens_end_id, tps[tp_gid]);
+            int det_id = detect_engine.cover(result.op_table, sens_end_id, tps[tp_gid]).det_op;
             if (det_id != -1) {
                 result.cover_lists[det_id].det_cover.push_back(tp_gid);
             }
@@ -776,4 +784,81 @@ inline SimulationResult FaultSimulator::simulate(const MarchTest& mt, const vect
     // 3) Reporter
     reporter.build(tps, faults, result);
     return result;
+}
+
+using GroupId = size_t;         // 覆蓋群組 id
+
+struct GroupKey {
+    string fault_id;
+    OrientationGroup og;
+    bool operator==(const GroupKey& o) const {
+        return fault_id == o.fault_id && og == o.og;
+    }
+};
+
+struct GroupKeyHash {
+    std::size_t operator()(const GroupKey& k) const noexcept {
+        return std::hash<string>{}(k.fault_id) ^ (std::hash<int>{}(int(k.og))<<1);
+    }
+};
+
+class GroupIndex {
+public:
+    // 構建：根據 faults 與 tps 建 tp→group 映射與 group_meta
+    void build(const vector<TestPrimitive>& tps);
+    int group_of_tp(size_t tp_gid) const; // tp → group
+    bool is_group_covered(int gid) const;
+    bool mark_covered_if_new(int gid);      // true 表示這次是新覆蓋
+    
+    size_t total_groups() const { return group_meta_.size(); }
+    size_t uncovered_groups() const { return std::count(group_covered_.begin(), group_covered_.end(), 0); }
+private:
+    vector<int> tp2group_; // index: tp_gid, value: group_id
+    vector<uint8_t> group_covered_; // index: group_id, value: 0/1
+    vector<GroupKey> group_meta_; // index: group_id, value: GroupKey
+};
+
+inline void GroupIndex::build(const vector<TestPrimitive>& tps) {
+    tp2group_.resize(tps.size(), -1);
+    unordered_map<GroupKey, GroupId, GroupKeyHash> key2gid;
+    for (TpGid t = 0; t < tps.size(); ++t) {
+        const auto& tp = tps[t];
+        GroupKey gk{tp.parent_fault_id, tp.group};
+        auto it = key2gid.find(gk);
+        if (it == key2gid.end()) {
+            GroupId gid = (GroupId)group_meta_.size();
+            key2gid.emplace(gk, gid);
+            group_meta_.push_back(gk);
+            key2gid[gk] = gid;
+            tp2group_[t] = gid;
+        } else {
+            tp2group_[t] = it->second;
+        }
+    }
+    group_covered_.resize(group_meta_.size(), 0);
+}
+
+inline int GroupIndex::group_of_tp(size_t tp_gid) const {
+    if (tp_gid < 0 || tp_gid >= tp2group_.size()) {
+        throw runtime_error("GroupIndex::group_of_tp: invalid tp_gid: " + to_string(tp_gid));
+    }
+    return tp2group_[tp_gid];
+}
+
+inline bool GroupIndex::is_group_covered(int gid) const {
+    if (gid < 0 || gid >= group_covered_.size()) {
+        throw runtime_error("GroupIndex::is_group_covered: invalid gid: " + to_string(gid));
+    }
+    return group_covered_[gid] != 0;
+}
+
+inline bool GroupIndex::mark_covered_if_new(int gid) {
+    if (gid < 0 || gid >= group_covered_.size()) {
+        throw runtime_error("GroupIndex::mark_covered_if_new: invalid gid: " + to_string(gid));
+    }
+    if (group_covered_[gid] == 0) {
+        group_covered_[gid] = 1;
+        return true;
+    }
+    return false;
 }

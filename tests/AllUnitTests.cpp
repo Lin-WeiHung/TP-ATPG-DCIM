@@ -116,7 +116,7 @@ static void test_DetectEngine(){
 
 static void test_Reporter(){
     cout << "[Class] Reporter\n";
-    Reporter r; SimulationResult res; CoverLists cl; cl.det_cover.push_back(0); res.cover_lists={cl};
+    Reporter r; SimulationResult res; RawCoverLists cl; cl.det_cover.push_back(0); res.cover_lists={cl};
     Fault f; f.fault_id="F1"; f.cell_scope=CellScope::SingleCell; f.category=Category::MustRead; vector<Fault> faults{f};
     TestPrimitive tp; tp.parent_fault_id="F1"; vector<TestPrimitive> tps{tp};
     r.build(tps, faults, res);

@@ -96,8 +96,18 @@ public:
             }
             // 2) element close policy (same semantics as greedy)
             if (cur.elements.back().ops.size() > 3 || policy_.should_close(deltas)) {
-                cur = close_element(cur, curOrder);
-                curOrder = flip_order(curOrder);
+                // New element's order: flip only if the last two elements share the same order.
+                AddrOrder newOrder;
+                if (cur.elements.size() >= 2 &&
+                    cur.elements[cur.elements.size()-1].order == cur.elements[cur.elements.size()-2].order) {
+                    newOrder = flip_order(cur.elements.back().order);
+                } else {
+                    newOrder = cur.elements.back().order;
+                }
+                MarchElement e; e.order = newOrder;
+                cur.elements.push_back(e);
+
+                curOrder = cur.elements.back().order;
                 curSim = simulator_.run(cur);
                 continue;
             }
