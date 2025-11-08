@@ -91,6 +91,7 @@
 #include <chrono>
 
 #include "../include/FaultSimulator.hpp"
+#include <nlohmann/json.hpp>
 
 using std::string; using std::vector; using std::cout; using std::endl;
 
@@ -521,6 +522,93 @@ static void write_detect_cover_table(std::ostream& os, const SimulationResult& s
 }
 
 /**
+ * @brief 寫 Opscore 表格（每個 op 的打分摘要）
+ * 欄位順序：# Elem Idx Order Pre A0 Pre A1 Pre CAS Pre A3 Pre A4 Op Opscore
+ * 其中 Opscore 欄位顯示 total_score，並做成下拉以展開 OpScoreOutcome 的所有欄位。
+ */
+struct StepLogItem { int step{0}; std::string op; double score{0.0}; double cov_after{0.0}; std::vector<std::pair<std::string,double>> cands; };
+struct WeightCfg { bool has{false}; ScoreWeights w{}; };
+
+static void write_opscore_table(std::ostream& os, const SimulationResult& sim,
+								const vector<TestPrimitive>& tps,
+								const std::vector<StepLogItem>& logs,
+								const WeightCfg& wc){
+	os << "<details><summary>Op scores (rows: "<< sim.op_table.size() << ")</summary>";
+	os << "<table class=\"striped\"><thead><tr>"
+	   << "<th>#</th><th>Elem</th><th>Idx</th><th>Order</th>"
+	   << "<th>Pre A0</th><th>Pre A1</th><th>Pre CAS</th><th>Pre A3</th><th>Pre A4</th><th>Op</th><th>Opscore</th>"
+	   << "</tr></thead><tbody>";
+
+	int last_elem = -1; bool useB = true;
+	OpScorer scorer;
+	scorer.set_group_index(tps);
+	if (wc.has) scorer.set_weights(wc.w);
+	// Score all ops in one pass to match new API
+	auto outcomes = scorer.score_ops(sim.cover_lists);
+	outcomes.resize(sim.op_table.size()); // guard if scorer returns fewer entries
+	size_t next_log = 0;
+	for (size_t i=0;i<sim.op_table.size();++i){
+		const auto& oc = sim.op_table[i];
+		if (oc.elem_index != last_elem){ useB = !useB; last_elem = oc.elem_index; }
+		os << "<tr class=\"" << (useB? "rowB" : "rowA") << "\">";
+		write_op_summary_cells(os, i, oc);
+
+		const auto& outcome = outcomes[i];
+		std::ostringstream tss; tss.setf(std::ios::fixed); tss<< std::setprecision(4) << outcome.total_score;
+
+		os << "<td><details><summary>"<< tss.str() <<"</summary>";
+		os << "<ul class=\"ops\">";
+		{
+			std::ostringstream oss; oss.setf(std::ios::fixed);
+			oss<< std::setprecision(4) << outcome.total_score;
+			os << "<li><b>total_score</b>: "<< oss.str() <<"</li>";
+		}
+		{
+			std::ostringstream oss; oss.setf(std::ios::fixed);
+			oss<< std::setprecision(4) << outcome.S_cov;
+			os << "<li><b>S_cov</b>: "<< oss.str() <<"</li>";
+		}
+		os << "<li><b>D_cov</b>: "<< outcome.D_cov <<"</li>";
+		os << "<li><b>part_M_num</b>: "<< outcome.part_M_num <<"</li>";
+		os << "<li><b>full_M_num</b>: "<< outcome.full_M_num <<"</li>";
+		{
+			std::ostringstream oss; oss.setf(std::ios::fixed);
+			oss<< std::setprecision(4) << outcome.norm_factor;
+			os << "<li><b>norm_factor</b>: "<< oss.str() <<"</li>";
+		}
+		// Lookahead candidates at this step (matched by op token and in order)
+		const std::string row_op = op_repr(oc.op);
+		if (next_log < logs.size() && logs[next_log].op == row_op){
+			os << "<ul class=\"ops\"><li><details><summary>Lookahead candidates ("<< logs[next_log].cands.size() <<")</summary><ol>";
+			for (const auto& pr : logs[next_log].cands){
+				std::ostringstream sc; sc.setf(std::ios::fixed); sc<< std::setprecision(4) << pr.second;
+				os << "<li>"<< html_escape(pr.first) <<": "<< sc.str() <<"</li>";
+			}
+			os << "</ol></details></li></ul>";
+			++next_log;
+		}
+
+		os << "</ul></details></td>";
+		os << "</tr>";
+	}
+	os << "</tbody></table></details>";
+}
+
+// ------------------ Lookahead step logs rendering ------------------
+
+static void write_lookahead_logs(std::ostream& os, const std::vector<StepLogItem>& logs){
+	if (logs.empty()) return;
+	os << "<details open><summary>Lookahead steps ("<< logs.size() <<")</summary>\n";
+	for (const auto& L : logs){
+		std::ostringstream sc; sc.setf(std::ios::fixed); sc<< std::setprecision(4) << L.score;
+		std::ostringstream cv; cv.setf(std::ios::fixed); cv<< std::setprecision(2) << (L.cov_after*100.0) << "%";
+		os << "<details><summary>Step "<< (L.step+1) <<": "<< html_escape(L.op)
+		   << " &mdash; score="<< sc.str() <<" (coverage="<< cv.str() <<")</summary></details>\n";
+	}
+	os << "</details>\n";
+}
+
+/**
  * @brief 輸出單一 op 的迷你表格（巢狀明細使用）
  */
 // removed unused helper write_single_op_table (was causing -Wunused-function warning)
@@ -702,6 +790,16 @@ int main(int argc, char** argv){
 
 		// 2) March tests（讀 MarchTest.json 並正規化）
 		auto t2_start = clock::now();
+		// Read raw JSON to extract optional LookaheadLogs
+		nlohmann::json jroot;
+		{
+			std::ifstream ifs(opt.march_json);
+			if (!ifs) throw std::runtime_error("cannot open MarchTest.json: "+ opt.march_json);
+			ifs >> jroot;
+			if (!jroot.is_array()) throw std::runtime_error("MarchTest.json root must be an array");
+		}
+
+		// parse tests via normalizer
 		MarchTestJsonParser mparser;
 		auto raw_mts = mparser.parse_file(opt.march_json);
 
@@ -730,8 +828,42 @@ int main(int argc, char** argv){
 		// Fault anchors（給 TP 明細超連結）
 		write_fault_anchors(ofs, raw_faults);
 
+		// Build logs per test index
+		std::vector<std::vector<StepLogItem>> logs_by_test(raw_mts.size());
+		std::vector<WeightCfg> weights_by_test(raw_mts.size());
+		for (size_t i=0; i<jroot.size() && i<logs_by_test.size(); ++i){
+			const auto& it = jroot[i];
+			// optional OpScoreWeights
+			if (it.contains("OpScoreWeights") && it["OpScoreWeights"].is_object()){
+				WeightCfg wc; wc.has = true;
+				const auto& W = it["OpScoreWeights"];
+				if (W.contains("alpha_S")) wc.w.alpha_S = W["alpha_S"].get<double>();
+				if (W.contains("beta_D")) wc.w.beta_D = W["beta_D"].get<double>();
+				if (W.contains("gamma_MPart")) wc.w.gamma_MPart = W["gamma_MPart"].get<double>();
+				if (W.contains("lambda_MAll")) wc.w.lambda_MAll = W["lambda_MAll"].get<double>();
+				weights_by_test[i] = wc;
+			}
+			if (it.contains("LookaheadLogs") && it["LookaheadLogs"].is_array()){
+				for (const auto& L : it["LookaheadLogs"]) {
+					StepLogItem item;
+					if (L.contains("step")) item.step = L["step"].get<int>();
+					if (L.contains("op")) item.op = L["op"].get<std::string>();
+					if (L.contains("score")) item.score = L["score"].get<double>();
+					if (L.contains("cov_after")) item.cov_after = L["cov_after"].get<double>();
+					if (L.contains("candidates") && L["candidates"].is_array()){
+						for (const auto& C : L["candidates"]) {
+							std::string cop = C.contains("op")? C["op"].get<std::string>() : std::string();
+							double cs = C.contains("score")? C["score"].get<double>() : 0.0;
+							item.cands.emplace_back(cop, cs);
+						}
+					}
+					logs_by_test[i].push_back(item);
+				}
+			}
+		}
+
 		// 逐個 March Test 模擬並輸出
-		FaultSimulator_sensitive_version simulator;
+		FaultSimulator simulator;
 		auto t3_start = clock::now();
 	long long per_tests_sum_us = 0;
 		for (size_t mi=0; mi<marchTests.size(); ++mi){
@@ -748,10 +880,17 @@ int main(int argc, char** argv){
 				<<" <span class=\"badge\">total coverage: "<< covss.str() <<"</span>"
 				<<"</summary>\n";
 
+			// Lookahead logs (if any)
+			if (mi < logs_by_test.size()) write_lookahead_logs(ofs, logs_by_test[mi]);
+
 			// 三種 CoverList 表格
 			write_state_cover_table(ofs, sim, all_tps, raw_faults, raw_index_by_id, faults);
 			write_sens_cover_table(ofs, sim, all_tps, raw_faults, raw_index_by_id, faults);
 			write_detect_cover_table(ofs, sim, all_tps, raw_faults, raw_index_by_id, faults);
+			// Opscore 表格（帶入對應 test 的 lookahead logs）
+			const std::vector<StepLogItem>& logs_for_this = (mi < logs_by_test.size()? logs_by_test[mi] : std::vector<StepLogItem>{});
+			const WeightCfg wc_for_this = (mi < weights_by_test.size()? weights_by_test[mi] : WeightCfg{});
+			write_opscore_table(ofs, sim, all_tps, logs_for_this, wc_for_this);
 
 			// Fault coverage summary
 			write_faults_coverage_table(ofs, sim, faults, all_tps, raw_faults, raw_index_by_id);

@@ -30,11 +30,11 @@ inline bool parse_bool(const std::string& v){
  */
 inline void apply_flag(const std::string& name, const std::string& val,
                        SynthConfig& cfg, int& k, double& target){
-    if (name=="alpha") cfg.alpha_state = std::atoi(val.c_str());
-    else if (name=="beta") cfg.beta_sens = std::atoi(val.c_str());
-    else if (name=="gamma") cfg.gamma_detect = std::atoi(val.c_str());
-    else if (name=="lambda") cfg.lambda_mask = std::atoi(val.c_str());
-    else if (name=="mu") cfg.mu_cost = std::atoi(val.c_str());
+    if (name=="alpha") cfg.alpha_state = std::atof(val.c_str());
+    else if (name=="beta") cfg.beta_sens = std::atof(val.c_str());
+    else if (name=="gamma") cfg.gamma_detect = std::atof(val.c_str());
+    else if (name=="lambda") cfg.lambda_mask = std::atof(val.c_str());
+    else if (name=="mu") cfg.mu_cost = std::atof(val.c_str());
     else if (name=="max_ops") cfg.max_ops = std::max(1, std::atoi(val.c_str()));
     else if (name=="defer-detect-only") cfg.defer_detect_only = parse_bool(val);
     else if (name=="k") k = std::max(1, std::atoi(val.c_str()));

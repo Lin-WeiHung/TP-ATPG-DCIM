@@ -8,6 +8,7 @@
 #include <optional>
 #include <array>
 #include <unordered_map>
+#include <unordered_set>
 
 #include <nlohmann/json.hpp>
 #include "FpParserAndTpGen.hpp" // reuse Op/Val/OpKind
@@ -24,6 +25,8 @@ using std::uint8_t;
 using std::unordered_map;
 using std::pair;
 using std::to_string;
+using std::max;
+using std::unordered_set;
 
 struct RawMarchTest {
     string name;
@@ -476,31 +479,38 @@ inline void StateCoverEngine::build_tp_buckets(const vector<TestPrimitive>& tps)
     }
 }
 
+struct SensOutcome {
+    enum class Status { SensAll, SensPartial, SensNone, DontNeedSens };
+    Status status{Status::SensNone};
+    int sens_end_op{-1}; // 最後一個成功致敏的 op 索引
+    int sens_mask_at_op{-1}; // 第一個對sensitizer造成遮蔽的 op
+};
+
 class SensEngine {
 public:
     // 成功回傳完成的 op_id；失敗回 -1
-    OpId cover(const vector<OpContext>& opt, OpId opt_begin, const TestPrimitive& tp) const;
+    SensOutcome cover(const vector<OpContext>& opt, OpId opt_begin, const TestPrimitive& tp) const;
 private:
     bool op_match(const OpContext& march_test_op, const Op& tp_op) const;
 };
 
-inline OpId SensEngine::cover(const vector<OpContext>& opt, OpId opt_begin, const TestPrimitive& tp) const {
-    const int tp_size = static_cast<int>(tp.ops_before_detect.size());
-    if (tp_size == 0) return opt_begin;                  // 無 sensitizer 序列：不前進、保留 state cover 位置
+inline SensOutcome SensEngine::cover(const vector<OpContext>& opt, OpId opt_begin, const TestPrimitive& tp) const {
+    const int op_length = static_cast<int>(tp.ops_before_detect.size());
+    if (op_length == 0) return {SensOutcome::Status::DontNeedSens, opt_begin, -1}; // 無 sensitizer 序列：不前進、保留 state cover 位置
 
-    if (opt_begin < 0 || opt_begin >= static_cast<int>(opt.size())) return -1;
+    if (opt_begin < 0 || opt_begin >= static_cast<int>(opt.size())) return SensOutcome{};
 
-    const int last = opt_begin + tp_size - 1;            // 最後一個要匹配到的 op 索引
-    if (last < 0 || last >= static_cast<int>(opt.size())) return -1;
+    const int last = opt_begin + op_length - 1;            // 最後一個要匹配到的 op 索引
+    if (last < 0 || last >= static_cast<int>(opt.size())) return SensOutcome{};
 
     // 必須都在同一個 element 內
-    if (opt[opt_begin].elem_index != opt[last].elem_index) return -1;
+    if (opt[opt_begin].elem_index != opt[last].elem_index) return SensOutcome{};
 
     // 逐 op 比對
     for (int i = opt_begin, j = 0; i <= last; ++i, ++j) {
-        if (!op_match(opt[i], tp.ops_before_detect[j])) return -1;
+        if (!op_match(opt[i], tp.ops_before_detect[j])) return SensOutcome{SensOutcome::Status::SensPartial, -1, i}; // 在 op i 被遮蔽
     }
-    return last; // 回傳最後一個成功匹配到的 op 索引
+    return SensOutcome{SensOutcome::Status::SensAll, last, -1}; // 回傳最後一個成功匹配到的 op 索引
 }
 
 inline bool SensEngine::op_match(const OpContext& march_test_op, const Op& tp_op) const {
@@ -518,10 +528,10 @@ inline bool SensEngine::op_match(const OpContext& march_test_op, const Op& tp_op
 }
 
 struct DetectOutcome {
-  enum class Status { Found, MaskedOnD, NoDetectorReachable };
-  Status status{Status::NoDetectorReachable};
-  int det_op{-1};
-  int mask_at_op{-1}; // 第一個對 D 造成遮蔽的 op
+    enum class Status { Found, MaskedOnD, NoDetectorReachable };
+    Status status{Status::NoDetectorReachable};
+    int det_op{-1};
+    int mask_at_op{-1}; // 第一個對 D 造成遮蔽的 op
 };
 
 class DetectEngine {
@@ -565,7 +575,7 @@ inline DetectOutcome DetectEngine::cover(const vector<OpContext>& opt, OpId sens
     for (OpId i = anchor; i < (OpId)opt.size(); ++i) {
         // 先檢查遮罩：一旦遇到會寫 D 的操作，代表 fault effect 被洗掉 → 失敗
         if (is_masking_on_D(opt[i])) {
-            return DetectOutcome{DetectOutcome::Status::Found, -1, i}; // mask at i
+            return DetectOutcome{DetectOutcome::Status::MaskedOnD, -1, i}; // mask at i
         }
         // 符合 detector（例如 R0/R1）→ 成功
         if (detect_match(opt[i], tp.detector)) {
@@ -591,11 +601,19 @@ inline bool DetectEngine::detect_match(const OpContext& op, const Detector& dec)
     return true;
 }
 
+struct MaskOutcome {
+    TpGid tp_gid;
+    enum class Status { AllMasked, PartMasked, NoMasking };
+    Status status{Status::NoMasking};
+    // 未來要加上partial masking的資訊
+};
+
 // ---------- 三階段結果與 Reporter ----------
 struct RawCoverLists {
-    vector<TpGid>     state_cover; // [op] -> tp_gid[]
-    vector<TpGid>     sens_cover;  // [op] -> tp_gid[]
-    vector<TpGid>     det_cover;   // [op] -> tp_gid[] (偵測命中)
+    vector<TpGid>       state_cover; // [op] -> tp_gid[]
+    vector<TpGid>       sens_cover;  // [op] -> tp_gid[]
+    vector<TpGid>       det_cover;   // [op] -> tp_gid[] (偵測命中)
+    vector<MaskOutcome> masked;      // [op] -> tp_gid[] (遮蔽誰)
 };
 
 struct FaultCoverageDetail {
@@ -771,13 +789,24 @@ inline SimulationResult FaultSimulator::simulate(const MarchTest& mt, const vect
 
         // 2) Sens + Detect 必須串在一起檢查
         for (size_t tp_gid : result.cover_lists[op_id].state_cover) {
-            int sens_end_id = sens_engine.cover(result.op_table, (int)op_id, tps[tp_gid]);
-            if (sens_end_id == -1) continue;                // 沒致敏就不做偵測
-            result.cover_lists[sens_end_id].sens_cover.push_back(tp_gid);
+            auto sens_result = sens_engine.cover(result.op_table, (int)op_id, tps[tp_gid]);
+            if (sens_result.status == SensOutcome::Status::SensNone) {
+                continue; // 沒致敏就不做偵測
+            }
+            if (sens_result.status == SensOutcome::Status::SensPartial) {
+                result.cover_lists[sens_result.sens_mask_at_op].masked.push_back(
+                    MaskOutcome{tp_gid, MaskOutcome::Status::PartMasked});
+                continue; // 致敏被遮蔽就不做偵測
+            }
+            result.cover_lists[sens_result.sens_end_op].sens_cover.push_back(tp_gid);
 
-            int det_id = detect_engine.cover(result.op_table, sens_end_id, tps[tp_gid]).det_op;
-            if (det_id != -1) {
-                result.cover_lists[det_id].det_cover.push_back(tp_gid);
+            auto det_result = detect_engine.cover(result.op_table, sens_result.sens_end_op, tps[tp_gid]);
+            if (det_result.det_op != -1) {
+                result.cover_lists[det_result.det_op].det_cover.push_back(tp_gid);
+            }
+            if (det_result.mask_at_op != -1) {
+                result.cover_lists[det_result.mask_at_op].masked.push_back(
+                    MaskOutcome{tp_gid, MaskOutcome::Status::AllMasked});
             }
         }
     }
@@ -806,16 +835,31 @@ class GroupIndex {
 public:
     // 構建：根據 faults 與 tps 建 tp→group 映射與 group_meta
     void build(const vector<TestPrimitive>& tps);
+    void reset_coverage() { std::fill(group_covered_.begin(), group_covered_.end(), false); }
+    void reset_state_flags() { 
+        std::fill(group_state_flagged_.begin(), group_state_flagged_.end(), false); 
+        std::fill(group_sens_flagged_.begin(), group_sens_flagged_.end(), false);
+    }
+    void reset_all() { reset_coverage(); reset_state_flags(); }
     int group_of_tp(size_t tp_gid) const; // tp → group
-    bool is_group_covered(int gid) const;
-    bool mark_covered_if_new(int gid);      // true 表示這次是新覆蓋
+    bool is_tp_covered(int tp_gid) const;
+    bool mark_covered_if_new(int tp_gid);      // true 表示這次是新覆蓋
+    bool is_tp_static(int tp_gid) const;
+    bool mark_group_state_flagged_if_new(int tp_gid);
+    bool mark_group_sens_flagged_if_new(int tp_gid);
+    bool release_groupflag_if_flagged(int tp_gid);
     
     size_t total_groups() const { return group_meta_.size(); }
     size_t uncovered_groups() const { return std::count(group_covered_.begin(), group_covered_.end(), 0); }
+    size_t uncovered_tps() const;
 private:
     vector<int> tp2group_; // index: tp_gid, value: group_id
-    vector<uint8_t> group_covered_; // index: group_id, value: 0/1
+    vector<bool> group_covered_; // index: group_id, value: 0/1
     vector<GroupKey> group_meta_; // index: group_id, value: GroupKey
+    vector<size_t> group_sizes_; // index: group_id, value: number of TPs in this group
+    vector<bool> group_is_static_; // index: group_id, value: is static group
+    vector<bool> group_state_flagged_; // index: group_id, value: has state-covered
+    vector<bool> group_sens_flagged_;  // index: group_id, value: has sens-covered
 };
 
 inline void GroupIndex::build(const vector<TestPrimitive>& tps) {
@@ -831,34 +875,187 @@ inline void GroupIndex::build(const vector<TestPrimitive>& tps) {
             group_meta_.push_back(gk);
             key2gid[gk] = gid;
             tp2group_[t] = gid;
+            group_sizes_.push_back(1);
+            group_is_static_.push_back(tp.ops_before_detect.empty());
         } else {
             tp2group_[t] = it->second;
+            group_sizes_[it->second]++;
         }
     }
-    group_covered_.resize(group_meta_.size(), 0);
+    group_state_flagged_.resize(group_meta_.size(), false);
+    group_sens_flagged_.resize(group_meta_.size(), false);
+    group_covered_.resize(group_meta_.size(), false);
 }
 
 inline int GroupIndex::group_of_tp(size_t tp_gid) const {
-    if (tp_gid < 0 || tp_gid >= tp2group_.size()) {
+    if (tp_gid >= tp2group_.size()) {
         throw runtime_error("GroupIndex::group_of_tp: invalid tp_gid: " + to_string(tp_gid));
     }
     return tp2group_[tp_gid];
 }
 
-inline bool GroupIndex::is_group_covered(int gid) const {
-    if (gid < 0 || gid >= group_covered_.size()) {
-        throw runtime_error("GroupIndex::is_group_covered: invalid gid: " + to_string(gid));
-    }
-    return group_covered_[gid] != 0;
+inline bool GroupIndex::is_tp_covered(int tp_gid) const {
+    int gid = group_of_tp(tp_gid);
+    return group_covered_[gid] != false;
 }
 
-inline bool GroupIndex::mark_covered_if_new(int gid) {
-    if (gid < 0 || gid >= group_covered_.size()) {
-        throw runtime_error("GroupIndex::mark_covered_if_new: invalid gid: " + to_string(gid));
-    }
-    if (group_covered_[gid] == 0) {
-        group_covered_[gid] = 1;
+inline bool GroupIndex::mark_covered_if_new(int tp_gid) {
+    int gid = group_of_tp(tp_gid);
+    if (group_covered_[gid] == false) {
+        group_covered_[gid] = true;
         return true;
     }
     return false;
+}
+
+inline bool GroupIndex::is_tp_static(int tp_gid) const {
+    int gid = group_of_tp(tp_gid);
+    return group_is_static_[gid];
+}
+
+inline size_t GroupIndex::uncovered_tps() const {
+    size_t count = 0;
+    for(size_t i = 0; i < group_sizes_.size(); ++i){
+        if(!group_covered_[i]){
+            count += group_sizes_[i];
+        }
+    }
+    return count;
+}
+
+inline bool GroupIndex::mark_group_state_flagged_if_new(int tp_gid) {
+    int gid = group_of_tp(tp_gid);
+    if (group_state_flagged_[gid] == false) {
+        group_state_flagged_[gid] = true;
+        return true;
+    }
+    return false;
+}
+
+inline bool GroupIndex::mark_group_sens_flagged_if_new(int tp_gid) {
+    int gid = group_of_tp(tp_gid);
+    if (group_sens_flagged_[gid] == false) {
+        group_sens_flagged_[gid] = true;
+        return true;
+    }
+    return false;
+}
+
+inline bool GroupIndex::release_groupflag_if_flagged(int tp_gid) {
+    int gid = group_of_tp(tp_gid);
+    bool switched = false;
+    if (group_state_flagged_[gid] == true) {
+        group_state_flagged_[gid] = false;
+        switched = true;
+    }
+    if (group_sens_flagged_[gid] == true) {
+        group_sens_flagged_[gid] = false;
+        switched = true;
+    }
+    return switched;
+}
+
+struct OpScore {
+    double S_cov{0.0}; // raw-state & sens 中屬未覆蓋群組的加權總和
+    int D_cov{0}; // raw-detect 中實際增加 coverage 的數量
+    int M_50{0};    // 遮蔽當下只完成 state（一般 TP）
+    int M_100{0};   // 遮蔽當下已完成 state+sens（或屬 state-only TP）
+    int LastPath{0};// 切斷最後活路的遮蔽數（可做倍率）
+};
+
+struct ScoreWeights {
+    double alpha_S = 1.00; // S_cov 權重
+    double beta_D = 2.00; // D_cov 權重
+    double gamma_MPart = 0.50; // 遮蔽 50% 懲罰
+    double lambda_MAll    = 1.00; // 遮蔽 100% 懲罰
+};
+
+struct OpScoreOutcome {
+    double total_score{0.0};
+    double S_cov{0.0};
+    int D_cov{0};
+    int part_M_num{0};
+    int full_M_num{0};
+    double norm_factor{1.0};
+};
+
+class OpScorer {
+public:
+    vector<OpScoreOutcome> score_ops(const vector<RawCoverLists>& sim_results);
+    void set_group_index(const vector<TestPrimitive>& tps) { group_index_.build(tps); }
+    void set_weights(const ScoreWeights& w) { weights_ = w; }
+private:
+    GroupIndex group_index_;
+    ScoreWeights weights_;                  
+    double calculate_S_cov(const vector<TpGid>& state_list, const vector<TpGid>& sens_list);
+    int calculate_D_cov(const vector<TpGid>& detect_list);
+    int calculate_part_masking_num(const vector<MaskOutcome>& masked_list);
+    int calculate_full_masking_num(const vector<MaskOutcome>& masked_list);
+};
+
+inline vector<OpScoreOutcome> OpScorer::score_ops(const vector<RawCoverLists>& sim_results) {
+    vector<OpScoreOutcome> outcomes;
+    // 重置所有 coverage 與階段旗標，確保每次打分彼此獨立
+    group_index_.reset_all();
+    for (const auto& sim_result : sim_results) {
+        OpScoreOutcome out;
+        out.norm_factor = max(1.0, (double)group_index_.uncovered_groups());
+        out.D_cov = calculate_D_cov(sim_result.det_cover);
+        out.S_cov = calculate_S_cov(sim_result.state_cover, sim_result.sens_cover);
+        out.part_M_num = calculate_part_masking_num(sim_result.masked);
+        out.full_M_num = calculate_full_masking_num(sim_result.masked);
+        out.total_score = weights_.alpha_S * out.S_cov / out.norm_factor +
+                        weights_.beta_D * static_cast<double>(out.D_cov) / out.norm_factor -
+                        weights_.gamma_MPart * out.part_M_num / out.norm_factor -
+                        weights_.lambda_MAll * out.full_M_num / out.norm_factor;
+        outcomes.push_back(out);
+    }
+    return outcomes;
+}
+
+inline double OpScorer::calculate_S_cov(const vector<TpGid>& state_list, const vector<TpGid>& sens_list) {
+    double total_S_cov = 0.0;
+    for (const auto& tp_gid : state_list) {
+        if (!group_index_.is_tp_covered(tp_gid) && group_index_.mark_group_state_flagged_if_new(tp_gid)) {
+            total_S_cov ++;
+        }
+    }
+    for (const auto& tp_gid : sens_list) {
+        if (!group_index_.is_tp_covered(tp_gid) && group_index_.mark_group_sens_flagged_if_new(tp_gid)) {
+            total_S_cov ++;
+        }
+    }
+    return total_S_cov;
+}
+
+inline int OpScorer::calculate_D_cov(const vector<TpGid>& detect_list) {
+    int total_D_cov = 0;
+    for (const auto& tp_gid : detect_list) {
+        if (group_index_.mark_covered_if_new(tp_gid)) {
+            total_D_cov ++;
+        }
+    }
+    return total_D_cov;
+}
+
+inline int OpScorer::calculate_part_masking_num(const vector<MaskOutcome>& masked_list) {
+    int total_M_num = 0;
+    for (const auto& mo : masked_list) {
+        if (mo.status == MaskOutcome::Status::PartMasked && !group_index_.is_tp_covered(mo.tp_gid)) {
+            group_index_.release_groupflag_if_flagged(mo.tp_gid);
+            total_M_num ++;
+        }
+    }
+    return total_M_num;
+}
+
+inline int OpScorer::calculate_full_masking_num(const vector<MaskOutcome>& masked_list) {
+    int total_M_num = 0;
+    for (const auto& mo : masked_list) {
+        if (mo.status == MaskOutcome::Status::AllMasked && !group_index_.is_tp_covered(mo.tp_gid)) {
+            group_index_.release_groupflag_if_flagged(mo.tp_gid);
+            total_M_num ++;
+        }
+    }
+    return total_M_num;
 }

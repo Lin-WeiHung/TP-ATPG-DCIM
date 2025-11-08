@@ -54,13 +54,13 @@ enum class GenOp {
  * @brief 合成器設定參數
  */
 struct SynthConfig {
-    int alpha_state  = 1;     ///< Δstate 權重
-    int beta_sens    = 1;     ///< Δsens 權重
-    int gamma_detect = 4;     ///< Δdetect 權重
-    int lambda_mask  = 0;     ///< 遮蔽懲罰（暫時不用）
-    int mu_cost      = 1;     ///< 每放一個 op 的固定成本
+    double alpha_state  = 1.0;     ///< Δstate 權重 (double)
+    double beta_sens    = 1.0;     ///< Δsens 權重 (double)
+    double gamma_detect = 4.0;     ///< Δdetect 權重 (double)
+    double lambda_mask  = 0.0;     ///< 遮蔽懲罰（暫時不用）(double)
+    double mu_cost      = 1.0;     ///< 每放一個 op 的固定成本 (double)
     bool defer_detect_only = true; ///< 純偵測期→關閉 element
-    int max_ops      = 60;  ///< 操作數上限
+    int max_ops      = 60;         ///< 操作數上限
 };
 
 // ================================================================
@@ -189,12 +189,12 @@ public:
     }
 
     double gain(const Delta& d) const {
-        // 以 double 計分，維持整數型權重亦可正確隱式轉型
-        return static_cast<double>(cfg_.alpha_state)  * d.dState
-             + static_cast<double>(cfg_.beta_sens)    * d.dSens
-             + static_cast<double>(cfg_.gamma_detect) * d.dDetect
-             - static_cast<double>(cfg_.lambda_mask)  * 0.0  // (暫時不用)
-             - static_cast<double>(cfg_.mu_cost);
+        // 全以 double 計分
+        return cfg_.alpha_state  * d.dState
+             + cfg_.beta_sens    * d.dSens
+             + cfg_.gamma_detect * d.dDetect
+             - cfg_.lambda_mask  * 0.0  // (暫時不用)
+             - cfg_.mu_cost;
     }
 
 private:

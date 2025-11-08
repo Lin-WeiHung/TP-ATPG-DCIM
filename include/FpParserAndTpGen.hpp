@@ -825,7 +825,7 @@ inline vector<Detector> DetectorPlanner::expandPosVariants(const OrientationPlan
 }
 
 // 是否需要detection
-bool DetectorPlanner::needDetection(const FPExpr& fp) const {
+inline bool DetectorPlanner::needDetection(const FPExpr& fp) const {
     if (fp.R.RD.has_value() && fp.Sv.last_D.has_value()) {
         if (fp.R.RD.value() != Val::X && fp.Sv.last_D.value() != Val::X && fp.R.RD.value() != fp.Sv.last_D.value()) return false;
     }
@@ -833,7 +833,7 @@ bool DetectorPlanner::needDetection(const FPExpr& fp) const {
 }
 
 // 是否允許偵測端 Compute 設置 Top Ci和 Bottom Ci
-bool DetectorPlanner::canComputeSetCi(const FPExpr& fp, CellScope scope) const {
+inline bool DetectorPlanner::canComputeSetCi(const FPExpr& fp, CellScope scope) const {
     if (fp.s_has_any_op) {
         // 若 Op 含有 Read/Write，則不可設置 Ci
         for (const auto& op : fp.Sv.ops) {
@@ -850,7 +850,7 @@ bool DetectorPlanner::canComputeSetCi(const FPExpr& fp, CellScope scope) const {
     return true; // cross-row 可經 compute 傳 Ci
 }
 
-Val DetectorPlanner::readExpect(const FPExpr& fp) const {
+inline Val DetectorPlanner::readExpect(const FPExpr& fp) const {
     if (fp.Sv.last_D.has_value() && fp.Sv.last_D.value() != Val::X) return fp.Sv.last_D.value();
     return Val::X;
 }

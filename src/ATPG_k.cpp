@@ -1,4 +1,4 @@
-//  g++ -std=c++17 -g -O2 -Wall -Wextra -Iinclude src/ATPG_k.cpp -o atpg_kdemo && ./atpg_kdemo input/S_C_faults.json --k=2 --target=0.9 --alpha=1 --beta=1 --gamma=10 --mu=1 --max_ops=60 --defer-detect-only=1 --html=output/March_Sim_Report_atpg.html
+//  g++ -std=c++17 -g -O2 -Wall -Wextra -Iinclude src/ATPG_k.cpp -o atpg_kdemo && ./atpg_kdemo input/S_C_faults.json --k=2 --target=1 --alpha=2.5 --beta=5 --gamma=2 --lambda=3 --max_ops=60 --html=output/March_Sim_Report_atpg.html
 #include <iostream>
 #include <iomanip>
 #include <string>
@@ -74,13 +74,50 @@ static std::string find_flag_value(int argc, char** argv, const std::string& nam
     return std::string();
 }
 
-static bool write_single_mt_json(const MarchTest& mt, const std::string& path){
+// Optional: Lookahead step logs embedding into MarchTest JSON under key "LookaheadLogs"
+struct StepLogDTO { struct Cand{ std::string op; double score; }; int step; std::string op; double score; double cov_after; std::vector<Cand> candidates; };
+
+static bool write_single_mt_json(const MarchTest& mt, const std::string& path,
+                                 const std::vector<StepLogDTO>& logs = {},
+                                 const ScoreWeights* w = nullptr){
     try{
         std::filesystem::path p(path);
         if (p.has_parent_path()) std::filesystem::create_directories(p.parent_path());
         std::ofstream ofs(path);
         if (!ofs) return false;
-        ofs << "[\n  {\n    \"March_test\": \""<< mt.name <<"\",\n    \"Pattern\": \""<< to_pattern_string(mt) <<"\"\n  }\n]\n";
+        ofs << "[\n  {\n    \"March_test\": \""<< mt.name <<"\",\n    \"Pattern\": \""<< to_pattern_string(mt) <<"\"";
+        if (w){
+            ofs << ",\n    \"OpScoreWeights\": {\n"
+                << "      \"alpha_S\": "<< std::setprecision(6) << std::fixed << w->alpha_S << ",\n"
+                << "      \"beta_D\": " << std::setprecision(6) << std::fixed << w->beta_D << ",\n"
+                << "      \"gamma_MPart\": "<< std::setprecision(6) << std::fixed << w->gamma_MPart << ",\n"
+                << "      \"lambda_MAll\": "<< std::setprecision(6) << std::fixed << w->lambda_MAll << "\n"
+                << "    }";
+        }
+        if (!logs.empty()){
+            ofs << ",\n    \"LookaheadLogs\": [\n";
+            for (size_t i=0;i<logs.size();++i){
+                const auto& L = logs[i];
+                ofs << "      { \"step\": "<< L.step
+                    <<", \"op\": \""<< L.op <<"\", \"score\": "<< std::setprecision(6) << std::fixed << L.score
+                    <<", \"cov_after\": "<< std::setprecision(6) << std::fixed << L.cov_after;
+                if (!L.candidates.empty()){
+                    ofs << ", \"candidates\": [";
+                    for (size_t j=0;j<L.candidates.size();++j){
+                        const auto& C = L.candidates[j];
+                        ofs << "{\"op\":\""<< C.op <<"\",\"score\":"<< std::setprecision(6) << std::fixed << C.score <<"}";
+                        if (j+1<L.candidates.size()) ofs << ",";
+                    }
+                    ofs << "]";
+                }
+                ofs << " }";
+                if (i+1<logs.size()) ofs << ",";
+                ofs << "\n";
+            }
+            ofs << "    ]\n  }\n]\n";
+        } else {
+            ofs << "\n  }\n]\n";
+        }
         ofs.close();
         return true;
     } catch(...){ return false; }
@@ -117,6 +154,16 @@ int main(int argc, char** argv){
         MarchTest mt; mt.name = "LookaheadSynth"; // empty => will get one Any element
         mt = driver.run(mt, target);
 
+        // extract lookahead step logs
+        std::vector<StepLogDTO> logs;
+        for (const auto& lg : driver.get_step_logs()){
+            StepLogDTO dto; dto.step = lg.step_index; dto.op = lg.op_token; dto.score = lg.first_score; dto.cov_after = lg.total_coverage_after;
+            for (const auto& c : lg.candidates){ dto.candidates.push_back({c.op, c.score}); }
+            logs.push_back(std::move(dto));
+        }
+        // build weights used in lookahead (must match LookaheadSynth mapping)
+        ScoreWeights usedW; usedW.alpha_S = cfg.alpha_state; usedW.beta_D = cfg.beta_sens; usedW.gamma_MPart = cfg.gamma_detect; usedW.lambda_MAll = cfg.lambda_mask;
+
         // simulate final
         SimulatorAdaptor sim(faults, tps);
         auto res = sim.run(mt);
@@ -130,7 +177,7 @@ int main(int argc, char** argv){
         if (auto htmlOut = find_flag_value(argc, argv, "html"); !htmlOut.empty()){
             // 1) dump single MarchTest into a temp json
             std::string mtJson = "output/Lookahead_Final.json";
-            if (!write_single_mt_json(mt, mtJson)){
+            if (!write_single_mt_json(mt, mtJson, logs, &usedW)){
                 cerr << "[warn] fail to write temp MarchTest json: "<< mtJson <<"\n";
             } else {
                 // 2) ensure MarchSimHtml exists (compile if needed)
