@@ -18,6 +18,7 @@
 #include <iostream>
 #include <memory>
 #include <stdexcept>
+#include <functional> // v2: for ScoreFunc
 #include <sstream>
 
 #include "FaultSimulator.hpp" // uses your existing simulator types & simulate(). :contentReference[oaicite:1]{index=1}
@@ -41,12 +42,11 @@ struct TemplateSlot {
     TemplateOpKind kind{TemplateOpKind::None};
 };
 
-// Element template: AddrOrder + 3 slots
+// ElementTemplate: a small pattern of up to 3 ops in one march element
 class ElementTemplate {
 public:
     ElementTemplate() = default;
-    ElementTemplate(AddrOrder ord,
-                    TemplateOpKind a, TemplateOpKind b, TemplateOpKind c) {
+    ElementTemplate(AddrOrder ord, TemplateOpKind a, TemplateOpKind b, TemplateOpKind c) {
         order = ord;
         slots[0].kind = a; slots[1].kind = b; slots[2].kind = c;
     }
@@ -77,7 +77,7 @@ private:
             if (s.kind == TemplateOpKind::None) {
                 seen_none = true;
             } else {
-                if (seen_none) return true; // hole inside element
+                if (seen_none) return true; // X - NON_X hole
             }
         }
         return false;
@@ -100,30 +100,22 @@ public:
 
     TemplateLibrary() = default;
 
-    // static TemplateLibrary make_default() {
-    //     TemplateLibrary lib;
-    //     auto mk = [](AddrOrder ord, TemplateOpKind a, TemplateOpKind b, TemplateOpKind c) {
-    //         ElementTemplate et(ord, a, b, c);
-    //         if (!et.is_valid()) throw std::runtime_error("make_default created invalid template");
-    //         return et;
-    //     };
-    //     // example set mapped to TailSig types; you can tune these
-    //     lib.templates_.push_back(mk(AddrOrder::Up,    TemplateOpKind::Write, TemplateOpKind::None,  TemplateOpKind::None)); // Only W
-    //     lib.templates_.push_back(mk(AddrOrder::Up,    TemplateOpKind::Write, TemplateOpKind::Read,  TemplateOpKind::None)); // W -> R
-    //     lib.templates_.push_back(mk(AddrOrder::Down,  TemplateOpKind::Compute,TemplateOpKind::None,  TemplateOpKind::None)); // Only C
-    //     lib.templates_.push_back(mk(AddrOrder::Down,  TemplateOpKind::Read, TemplateOpKind::Compute, TemplateOpKind::None)); // R -> C
-    //     lib.templates_.push_back(mk(AddrOrder::Any,   TemplateOpKind::Write, TemplateOpKind::Compute, TemplateOpKind::None)); // W->C
-    //     lib.templates_.push_back(mk(AddrOrder::Any,   TemplateOpKind::Compute,TemplateOpKind::Write, TemplateOpKind::None)); // C->W
-    //     return lib;
-    // }
-
-    TemplateLibrary make_bruce() {
+    static TemplateLibrary make_bruce() { // v2: static factory that enumerates all valid 3-slot templates
         TemplateLibrary lib;
         for (AddrOrder ord : {AddrOrder::Up, AddrOrder::Down}) {
             // brute-force all combinations of the 4 TemplateOpKind values into 3 slots
-            for (TemplateOpKind a : {TemplateOpKind::None, TemplateOpKind::Read, TemplateOpKind::Write, TemplateOpKind::Compute}) {
-                for (TemplateOpKind b : {TemplateOpKind::None, TemplateOpKind::Read, TemplateOpKind::Write, TemplateOpKind::Compute}) {
-                    for (TemplateOpKind c : {TemplateOpKind::None, TemplateOpKind::Read, TemplateOpKind::Write, TemplateOpKind::Compute}) {
+            for (TemplateOpKind a : {TemplateOpKind::None,
+                                     TemplateOpKind::Read,
+                                     TemplateOpKind::Write,
+                                     TemplateOpKind::Compute}) {
+                for (TemplateOpKind b : {TemplateOpKind::None,
+                                         TemplateOpKind::Read,
+                                         TemplateOpKind::Write,
+                                         TemplateOpKind::Compute}) {
+                    for (TemplateOpKind c : {TemplateOpKind::None,
+                                             TemplateOpKind::Read,
+                                             TemplateOpKind::Write,
+                                             TemplateOpKind::Compute}) {
                         ElementTemplate et(ord, a, b, c);
                         if (et.is_valid()) lib.templates_.push_back(et);
                     }
@@ -181,13 +173,13 @@ class ICandidateGenerator {
 public:
     virtual ~ICandidateGenerator() = default;
     // Given library and a template id, produce candidate MarchElements (could be multiple if expanding values)
-    virtual vector<MarchElement> generate(const TemplateLibrary& lib, TemplateLibrary::TemplateId tid) = 0;
+    virtual vector<MarchElement> generate(const TemplateLibrary& lib, TemplateLibrary::TemplateId tid) const = 0; // v2: make generator const
 };
 
 class ValueExpandingGenerator : public ICandidateGenerator {
 public:
     vector<MarchElement> generate(const TemplateLibrary& lib,
-                                  TemplateLibrary::TemplateId tid) override {
+                                  TemplateLibrary::TemplateId tid) const override { // v2: const override
         vector<MarchElement> out;
         const auto& et = lib.at(tid);
 
@@ -273,6 +265,126 @@ struct CandidateResult {
     double score{0.0};
 };
 
+// v2: pluggable scoring function for searchers
+using ScoreFunc = std::function<double(const SimulationResult&, const MarchTest&)>;
+
+// v2: default scoring = total_coverage only
+inline double default_score_func(const SimulationResult& sim, const MarchTest&) {
+    return sim.total_coverage;
+}
+
+// v2: lightweight prefix state for sequence constraints
+// Replace former DataState with Val (X/Zero/One) from FpParserAndTpGen.hpp
+struct PrefixState {
+    Val D{Val::X};
+    std::size_t length{0};
+};
+
+// v2: interface for sequence-level constraints (e.g., first element W-only, D-policed reads)
+class ISequenceConstraint {
+public:
+    virtual ~ISequenceConstraint() = default;
+
+    virtual bool allow(const PrefixState& prefix,
+                       const MarchElement& elem,
+                       std::size_t pos) const = 0;
+
+    virtual void update(PrefixState& prefix,
+                        const MarchElement& elem,
+                        std::size_t pos) const {
+        (void)elem;
+        (void)pos;
+        ++prefix.length;
+    }
+};
+
+// v2: container for multiple constraints
+class SequenceConstraintSet {
+public:
+    void add(std::shared_ptr<ISequenceConstraint> c) {
+        constraints_.push_back(std::move(c));
+    }
+
+    bool allow(const PrefixState& prefix,
+               const MarchElement& elem,
+               std::size_t pos) const {
+        for (const auto& c : constraints_) {
+            if (!c->allow(prefix, elem, pos)) return false;
+        }
+        return true;
+    }
+
+    void update(PrefixState& prefix,
+                const MarchElement& elem,
+                std::size_t pos) const {
+        for (const auto& c : constraints_) {
+            c->update(prefix, elem, pos);
+        }
+    }
+
+private:
+    std::vector<std::shared_ptr<ISequenceConstraint>> constraints_;
+};
+
+// v2: example constraint – first element must be W-only
+class FirstElementWriteOnlyConstraint : public ISequenceConstraint {
+public:
+    bool allow(const PrefixState& prefix,
+               const MarchElement& elem,
+               std::size_t pos) const override {
+        // Only restrict the very first element of the sequence
+        if (pos != 0 && prefix.length != 0) return true;
+
+        bool has_write = false;
+        for (const auto& op : elem.ops) {
+            if (op.kind == OpKind::Write) {
+                has_write = true;
+            } else if (op.kind == OpKind::Read || op.kind == OpKind::ComputeAnd) {
+                // Disallow any R/C in the first element
+                return false;
+            }
+        }
+        return has_write;
+    }
+};
+
+// v2: example constraint – D=0 forbids R1, D=1 forbids R0
+class DataReadPolarityConstraint : public ISequenceConstraint {
+public:
+    bool allow(const PrefixState& prefix,
+               const MarchElement& elem,
+               std::size_t /*pos*/) const override {
+        if (prefix.D == Val::X) return true;
+
+        for (const auto& op : elem.ops) {
+            if (op.kind != OpKind::Read) continue;
+            if (prefix.D == Val::Zero && op.value == Val::One) {
+                return false;
+            }
+            if (prefix.D == Val::One && op.value == Val::Zero) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    void update(PrefixState& prefix,
+                const MarchElement& elem,
+                std::size_t pos) const override {
+        (void)pos;
+        for (const auto& op : elem.ops) {
+            if (op.kind == OpKind::Write) {
+                if (op.value == Val::Zero) {
+                    prefix.D = Val::Zero;
+                } else if (op.value == Val::One) {
+                    prefix.D = Val::One;
+                }
+            }
+        }
+        ++prefix.length;
+    }
+};
+
 // -----------------------------
 // GreedyTemplateSearcher
 //  - sequentially pick next element that maximizes incremental score
@@ -284,8 +396,17 @@ public:
                            const TemplateLibrary& lib,
                            const vector<Fault>& faults,
                            const vector<TestPrimitive>& tps,
-                           std::unique_ptr<ICandidateGenerator> gen = std::make_unique<ValueExpandingGenerator>())
-        : sim_(simulator), lib_(lib), faults_(faults), tps_(tps), gen_(std::move(gen)) {}
+                           std::unique_ptr<ICandidateGenerator> gen = std::make_unique<ValueExpandingGenerator>(),
+                           ScoreFunc scorer = default_score_func, // v2: pluggable scoring
+                           const SequenceConstraintSet* constraints = nullptr) // v2: optional sequence constraints
+        : sim_(simulator)
+        , lib_(lib)
+        , faults_(faults)
+        , tps_(tps)
+        , gen_(std::move(gen))
+        , scorer_(std::move(scorer)) // v2
+        , constraints_(constraints)   // v2
+    {}
 
     // Run greedy for skeleton length L. Returns chosen CandidateResult (single best path)
     CandidateResult run(size_t L) {
@@ -296,7 +417,10 @@ public:
         MarchTest prefix_mt;
         prefix_mt.name = "greedy_prefix";
 
-        // Remaining faults are tracked implicitly by sim reporter result; we always re-simulate the full prefix to get accurate remaining coverage.
+        PrefixState prefix_state; // v2: track D / length for sequence constraints
+
+        // Remaining faults are tracked implicitly by sim reports; for now we always
+        // re-simulate the full prefix to get accurate remaining coverage.
         // For efficiency you may modify FaultSimulator to support incremental simulation; PoC uses full simulate each time.
 
         vector<TemplateLibrary::TemplateId> chosen_ids;
@@ -312,13 +436,18 @@ public:
             for (size_t tid = 0; tid < lib_.size(); ++tid) {
                 auto elems = gen_->generate(lib_, tid);
                 for (auto &elem_variant : elems) {
+                    // v2: apply sequence-level constraints before simulating
+                    if (constraints_ && !constraints_->allow(prefix_state, elem_variant, pos)) {
+                        continue;
+                    }
+
                     // form a trial MT = prefix + candidate element
                     MarchTest trial_mt = prefix_mt;
                     if (!elem_variant.ops.empty()) trial_mt.elements.push_back(elem_variant);
 
                     // simulate trial_mt against current (static) fault list to get coverage
                     SimulationResult simres = sim_.simulate(trial_mt, faults_, tps_);
-                    double score = simres.total_coverage; // PoC: use total_coverage as metric
+                    double score = scorer_(simres, trial_mt); // v2: use pluggable scorer
 
                     if (score > best_score_this_pos) {
                         best_score_this_pos = score;
@@ -338,12 +467,19 @@ public:
             prefix_mt.elements.push_back(best_elem);
             chosen_ids.push_back(best_tid);
 
+            // v2: update prefix_state for constraints (D / length)
+            if (constraints_) {
+                constraints_->update(prefix_state, best_elem, pos);
+            } else {
+                ++prefix_state.length;
+            }
+
             // update best_overall if this prefix already looks best (we keep final L-length or best prefix)
             CandidateResult cr;
             cr.sequence = chosen_ids;
             cr.march_test = prefix_mt;
             cr.sim_result = best_sim;
-            cr.score = best_sim.total_coverage;
+            cr.score = scorer_(cr.sim_result, cr.march_test); // v2: keep score consistent with scorer_
             if (cr.score > best_overall.score) best_overall = std::move(cr);
         }
 
@@ -357,6 +493,8 @@ private:
     const vector<Fault>& faults_;
     const vector<TestPrimitive>& tps_;
     std::unique_ptr<ICandidateGenerator> gen_;
+    ScoreFunc scorer_;                        // v2: scoring strategy
+    const SequenceConstraintSet* constraints_; // v2: optional sequence constraints
 };
 
 // -----------------------------
@@ -371,8 +509,18 @@ public:
                          const vector<Fault>& faults,
                          const vector<TestPrimitive>& tps,
                          size_t beam_width = 8,
-                         std::unique_ptr<ICandidateGenerator> gen = std::make_unique<ValueExpandingGenerator>())
-        : sim_(simulator), lib_(lib), faults_(faults), tps_(tps), beam_width_(beam_width), gen_(std::move(gen)) {}
+                         std::unique_ptr<ICandidateGenerator> gen = std::make_unique<ValueExpandingGenerator>(),
+                         ScoreFunc scorer = default_score_func, // v2: pluggable scoring
+                         const SequenceConstraintSet* constraints = nullptr) // v2: optional sequence constraints
+        : sim_(simulator)
+        , lib_(lib)
+        , faults_(faults)
+        , tps_(tps)
+        , beam_width_(beam_width)
+        , gen_(std::move(gen))
+        , scorer_(std::move(scorer)) // v2
+        , constraints_(constraints)   // v2
+        {}
 
     // Run beam search for length L, produce up to top_k final candidates (sorted by score desc)
     vector<CandidateResult> run(size_t L, size_t top_k = 1) {
@@ -381,16 +529,20 @@ public:
             MarchTest mt;
             SimulationResult sim; // simulation of mt
             double score{0.0};
+            PrefixState prefix_state; // v2: per-path sequence state (D / length)
         };
 
         // initialize beam with empty prefix
         vector<BeamNode> beam;
-        BeamNode root; root.mt.name = "beam_root"; root.score = 0.0;
-        // Optionally simulate empty root if you want baseline; we just keep empty
+        BeamNode root;
+        root.mt.name = "beam_root";
+        root.score = 0.0;
+        // root.prefix_state is default-initialized (Unknown / length=0)
         beam.push_back(std::move(root));
 
         for (size_t pos = 0; pos < L; ++pos) {
-            vector<BeamNode> candidates; candidates.reserve(beam.size() * lib_.size());
+            vector<BeamNode> candidates;
+            candidates.reserve(beam.size() * lib_.size());
 
             // expand each beam node
             for (const auto& node : beam) {
@@ -401,14 +553,28 @@ public:
                         // skip empty element (no ops) to avoid useless candidates, but allow if wanted
                         if (elem_variant.ops.empty()) continue;
 
+                        // v2: apply sequence-level constraints before simulating
+                        if (constraints_ && !constraints_->allow(node.prefix_state, elem_variant, pos)) {
+                            continue;
+                        }
+
                         BeamNode nb;
                         nb.seq = node.seq;
                         nb.seq.push_back(tid);
                         nb.mt = node.mt;
                         nb.mt.elements.push_back(elem_variant);
+
+                        // v2: update prefix_state for this new path
+                        nb.prefix_state = node.prefix_state;
+                        if (constraints_) {
+                            constraints_->update(nb.prefix_state, elem_variant, pos);
+                        } else {
+                            ++nb.prefix_state.length;
+                        }
+
                         // simulate nb.mt to get accurate coverage given the progressive nature
                         nb.sim = sim_.simulate(nb.mt, faults_, tps_);
-                        nb.score = nb.sim.total_coverage;
+                        nb.score = scorer_(nb.sim, nb.mt); // v2: use pluggable scorer
 
                         candidates.push_back(std::move(nb));
                     }
@@ -436,7 +602,7 @@ public:
             cr.sequence = node.seq;
             cr.march_test = node.mt;
             cr.sim_result = node.sim;
-            cr.score = node.score;
+            cr.score = scorer_(cr.sim_result, cr.march_test); // v2: consistent score
             results.push_back(std::move(cr));
         }
         std::sort(results.begin(), results.end(), [](const CandidateResult& a, const CandidateResult& b){
@@ -454,16 +620,19 @@ private:
     const vector<TestPrimitive>& tps_;
     size_t beam_width_;
     std::unique_ptr<ICandidateGenerator> gen_;
+    ScoreFunc scorer_;                        // v2: scoring strategy
+    const SequenceConstraintSet* constraints_; // v2: optional sequence constraints
 };
 
 // -----------------------------
 // Utility: pretty print CandidateResult
 // -----------------------------
 inline void print_candidate_result(const CandidateResult& cr, std::ostream& os = std::cout) {
-    os << "Score: " << cr.score << "\n";
-    os << "Template sequence ids: ";
+    os << "Sequence (template ids): ";
     for (auto id : cr.sequence) os << id << " ";
-    os << "\nMarchTest (elements):\n";
+    os << "\n";
+    os << "MarchTest name: " << cr.march_test.name << "\n";
+    os << "Elements: " << cr.march_test.elements.size() << "\n";
     for (size_t i=0;i<cr.march_test.elements.size();++i) {
         const auto& e = cr.march_test.elements[i];
         os << "  Elem[" << i << "] order=" << (e.order==AddrOrder::Up?"Up":(e.order==AddrOrder::Down?"Down":"Any")) << " ops=";

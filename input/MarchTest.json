@@ -7,5 +7,9 @@
   {"March_test":"March nonsep 2", "Pattern": "b(W0, C(0)(1)(0));"},
   {"March_test":"March seqW0","Pattern":"b(W1, W0, C(0)(0)(0), R0, W1, C(1)(1)(1), R1, W0); a(C(0)(1)(0), W1, C(0)(1)(0)); d(C(0)(1)(0)); a(C(1)(0)(0), R1, W0, W0, W0, W0);"},
   {"March_test":"March seqW0 + W1","Pattern":"b(W1, W0, C(0)(0)(0), R0, W1, C(1)(1)(1), R1, W0); a(C(0)(1)(0), W1, C(0)(1)(0)); d(C(0)(1)(0)); a(C(1)(0)(0), R1, W0, W0, W0, W0, W1);"},
-  {"March_test":"March 89","Pattern":"b(W1, W0, C(0)(0)(0), R0, W1, C(1)(1)(1), R1, W0); a(C(0)(1)(0), W1, C(0)(1)(0)); d(C(1)(1)(0)); a(C(1)(0)(0), R1, W0, W1); d(W0);"}
+  {"March_test":"March 89","Pattern":"b(W1, W0, C(0)(0)(0), R0, W1, C(1)(1)(1), R1, W0); a(C(0)(1)(0), W1, C(0)(1)(0)); d(C(1)(1)(0)); a(C(1)(0)(0), R1, W0, W1); d(W0);"},
+  {"March_test":"March LSF 1","Pattern":"b(W0, W1, W1, R1);"},
+  {"March_test":"March LSF 2","Pattern":"b(W0, W1); b(W1, R1);"},
+  {"March_test":"March LSF 3","Pattern":"b(W0, W1, C(0)(0)(0)); b(W1, R1);"},
+  {"March_test":"March LSF 4","Pattern":"b(W0, W1, C(0)(0)(0)); b(R1);"}
 ]

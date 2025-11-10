@@ -8,6 +8,7 @@
 #include <sstream>
 #include <algorithm>
 #include <iomanip>
+#include <memory> // v2: for std::make_shared constraints
 
 #include "FpParserAndTpGen.hpp"
 #include "FaultSimulator.hpp"
@@ -17,6 +18,9 @@ using std::string; using std::vector; using std::ofstream; using std::ostringstr
 using css::template_search::TemplateLibrary; using css::template_search::TemplateEnumerator; using css::template_search::TemplateOpKind;
 using css::template_search::GreedyTemplateSearcher; using css::template_search::BeamTemplateSearcher; using css::template_search::CandidateResult;
 using css::template_search::ValueExpandingGenerator;
+using css::template_search::SequenceConstraintSet; // v2: sequence constraints container
+using css::template_search::FirstElementWriteOnlyConstraint; // v2: first element must be W-only
+using css::template_search::DataReadPolarityConstraint; // v2: read polarity constraint tied to written data
 
 // ------------------------------
 // Single-responsibility helpers
@@ -132,7 +136,14 @@ static vector<CandidateResult> run_greedy_prefixes(FaultSimulator& sim,
                                                    size_t top_k){
     vector<CandidateResult> out;
 
-    css::template_search::ValueExpandingGenerator defGen;
+    css::template_search::ValueExpandingGenerator defGen; // v2: value-expanding generator (enumerates R/W/C permutations)
+
+    // v2: install sequence constraints (first element W-only + data read polarity)
+    SequenceConstraintSet seq_constraints; // v2
+    seq_constraints.add(std::make_shared<FirstElementWriteOnlyConstraint>()); // v2
+    seq_constraints.add(std::make_shared<DataReadPolarityConstraint>()); // v2
+
+    css::template_search::PrefixState prefix_state; // v2: track data state & length for constraints
 
     MarchTest prefix_mt; prefix_mt.name = "greedy_prefix";
     vector<TemplateLibrary::TemplateId> chosen_ids; chosen_ids.reserve(L);
@@ -142,6 +153,9 @@ static vector<CandidateResult> run_greedy_prefixes(FaultSimulator& sim,
         for(size_t tid=0; tid<lib.size(); ++tid){
             auto elems = defGen.generate(lib, tid);
             for(auto &elem_variant : elems){
+                // v2: apply sequence constraints before simulate
+                if(!seq_constraints.allow(prefix_state, elem_variant, pos)) continue; // v2
+
                 MarchTest trial = prefix_mt; if(!elem_variant.ops.empty()) trial.elements.push_back(elem_variant);
                 SimulationResult simres = sim.simulate(trial, faults, tps);
                 double score = simres.total_coverage;
@@ -152,7 +166,10 @@ static vector<CandidateResult> run_greedy_prefixes(FaultSimulator& sim,
         prefix_mt.elements.push_back(best_elem);
         chosen_ids.push_back(best_tid);
 
-        CandidateResult cr; cr.sequence = chosen_ids; cr.march_test = prefix_mt; cr.sim_result = best_sim; cr.score = best_sim.total_coverage;
+        // v2: update prefix_state through constraints set
+        seq_constraints.update(prefix_state, best_elem, pos); // v2
+
+        CandidateResult cr; cr.sequence = chosen_ids; cr.march_test = prefix_mt; cr.sim_result = best_sim; cr.score = best_sim.total_coverage; // v2: score currently coverage only
         out.push_back(std::move(cr));
     }
     return out;
@@ -166,7 +183,12 @@ static vector<CandidateResult> run_beam_topk(FaultSimulator& sim,
                                              size_t L,
                                              size_t beam_width,
                                              size_t top_k){
-    BeamTemplateSearcher searcher(sim, lib, faults, tps, beam_width, std::make_unique<ValueExpandingGenerator>());
+    // v2: install same sequence constraints for beam search
+    auto gen = std::make_unique<ValueExpandingGenerator>(); // v2
+    SequenceConstraintSet seq_constraints; // v2
+    seq_constraints.add(std::make_shared<FirstElementWriteOnlyConstraint>()); // v2
+    seq_constraints.add(std::make_shared<DataReadPolarityConstraint>()); // v2
+    BeamTemplateSearcher searcher(sim, lib, faults, tps, beam_width, std::move(gen), css::template_search::default_score_func, &seq_constraints); // v2: pass constraints
     return searcher.run(L, top_k);
 }
 
@@ -182,8 +204,8 @@ int run_template_search_html(const string& faults_json_path,
     auto lib = make_bruce_lib();
 
     const size_t TOPK = 10;
-    auto greedy_list = run_greedy_prefixes(sim, lib, faults, tps, skeleton_length, TOPK);
-    auto beam_list   = run_beam_topk(sim, lib, faults, tps, skeleton_length, beam_width, TOPK);
+    auto greedy_list = run_greedy_prefixes(sim, lib, faults, tps, skeleton_length, TOPK); // v2: greedy uses sequence constraints
+    auto beam_list   = run_beam_topk(sim, lib, faults, tps, skeleton_length, beam_width, TOPK); // v2: beam uses sequence constraints
 
     write_html_report(greedy_list, beam_list, output_html_path);
     return 0;
