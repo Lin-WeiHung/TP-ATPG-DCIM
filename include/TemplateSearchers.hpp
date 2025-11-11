@@ -269,8 +269,40 @@ struct CandidateResult {
 using ScoreFunc = std::function<double(const SimulationResult&, const MarchTest&)>;
 
 // v2: default scoring = total_coverage only
-inline double default_score_func(const SimulationResult& sim, const MarchTest&) {
+inline double default_score_func(const SimulationResult& sim, const MarchTest& /*mt*/) {
     return sim.total_coverage;
+}
+
+// v3: custom scoring – prioritize state coverage, use total coverage as secondary,
+// and penalize number of operations to encourage concise sequences.
+// score = 1.0*state_coverage + 0.5*total_coverage - 0.01*ops_count
+// Notes:
+// - Coverage values are expected in [0,1].
+// - ops_count = sum of ops across all elements of the MarchTest provided to scorer.
+// - Weights are conservative defaults; adjust if you need stronger op penalties.
+inline double score_state_total_ops(const SimulationResult& sim, const MarchTest& mt) {
+    const double w_state = 1.0;
+    const double w_total = 0.5;
+    const double op_penalty = 0.01; // penalty per op
+
+    std::size_t ops_count = 0;
+    for (const auto& e : mt.elements) ops_count += e.ops.size();
+
+    return w_state * sim.state_coverage
+         + w_total * sim.total_coverage
+         - op_penalty * static_cast<double>(ops_count);
+}
+
+// v4: factory 建立具權重參數的 ScoreFunc（使用 lambda capture）
+// 允許呼叫端自訂 w_state, w_total, op_penalty，而不需要改動搜尋器介面或增加繁雜結構。
+inline ScoreFunc make_score_state_total_ops(double w_state, double w_total, double op_penalty) {
+    return [=](const SimulationResult& sim, const MarchTest& mt) -> double {
+        std::size_t ops_count = 0;
+        for (const auto& e : mt.elements) ops_count += e.ops.size();
+        return w_state * sim.state_coverage
+             + w_total * sim.total_coverage
+             - op_penalty * static_cast<double>(ops_count);
+    };
 }
 
 // v2: lightweight prefix state for sequence constraints

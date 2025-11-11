@@ -11,5 +11,6 @@
   {"March_test":"March LSF 1","Pattern":"b(W0, W1, W1, R1);"},
   {"March_test":"March LSF 2","Pattern":"b(W0, W1); b(W1, R1);"},
   {"March_test":"March LSF 3","Pattern":"b(W0, W1, C(0)(0)(0)); b(W1, R1);"},
-  {"March_test":"March LSF 4","Pattern":"b(W0, W1, C(0)(0)(0)); b(R1);"}
+  {"March_test":"March LSF 4","Pattern":"b(W0, W1, C(0)(0)(0)); b(R1);"},
+  {"March_test":"March COM 2","Pattern":"b(W0); a(R0, W1, C(1)(1)(1)); a(R1, W0, C(0)(0)(0)); d(R0, W1, C(0)(1)(1)); d(R1, C(0)(0)(0), W0); b(R0, C(0)(1)(0));"}
 ]
