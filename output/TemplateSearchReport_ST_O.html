@@ -1,0 +1,194 @@
+<!doctype html><html><head><meta charset=utf-8><title>Template Search Report</title><style>body{font-family:sans-serif;margin:20px} .grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;} .card{border:1px solid #ccc;border-radius:8px;padding:12px;background:#fafafa} .header{font-weight:700;margin-bottom:6px} .details{color:#444;font-size:12px;margin-bottom:8px;line-height:1.3} .seq{color:#555;margin-bottom:8px} table.mt{border-collapse:collapse;width:100%} table.mt td{border-bottom:1px solid #eee;padding:4px 6px} td.idx{width:40px;color:#666} td.ord{width:60px;color:#333;font-weight:600} td.ops{font-family:monospace} h2{margin-top:0} .col h2{margin-bottom:8px}</style></head><body><h1>Template Search Report</h1><p>Scoring: score = w_state*state + w_total*total - op_penalty*ops. &nbsp; w_state=0.9, w_total=0.5, op_penalty=0.01</p><div class=grid><div class=col><h2>Greedy (prefixes top 10)</h2><div class=card>
+  <div class=header>Score=0.0165, State=0.0294, Sens=0.0294, Total=0.0000</div>
+  <div class=details>state=0.0294 * w_state=0.9000 => 0.0265<br>total=0.0000 * w_total=0.5000 => 0.0000<br>ops=1 * op_penalty=0.0100 => -0.0100<br>sum=0.0265+0.0000-0.0100 = 0.0165</div>
+  <div class=seq>seq: 6</div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class=header>Score=0.8262, State=0.7500, Sens=0.6618, Total=0.3824</div>
+  <div class=details>state=0.7500 * w_state=0.9000 => 0.6750<br>total=0.3824 * w_total=0.5000 => 0.1912<br>ops=4 * op_penalty=0.0100 => -0.0400<br>sum=0.6750+0.1912-0.0400 = 0.8262</div>
+  <div class=seq>seq: 6, 3</div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>R0 W1 C(1,1,1)</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class=header>Score=1.0771, State=0.9559, Sens=0.8676, Total=0.5735</div>
+  <div class=details>state=0.9559 * w_state=0.9000 => 0.8603<br>total=0.5735 * w_total=0.5000 => 0.2868<br>ops=7 * op_penalty=0.0100 => -0.0700<br>sum=0.8603+0.2868-0.0700 = 1.0771</div>
+  <div class=seq>seq: 6, 3, 3</div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>R0 W1 C(1,1,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>R1 W0 C(0,0,0)</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class=header>Score=1.1559, State=0.9706, Sens=0.9118, Total=0.7647</div>
+  <div class=details>state=0.9706 * w_state=0.9000 => 0.8735<br>total=0.7647 * w_total=0.5000 => 0.3824<br>ops=10 * op_penalty=0.0100 => -0.1000<br>sum=0.8735+0.3824-0.1000 = 1.1559</div>
+  <div class=seq>seq: 6, 3, 3, 19</div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>R0 W1 C(1,1,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>R1 W0 C(0,0,0)</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Down</td><td class=ops>R0 W1 C(0,0,1)</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class=header>Score=1.1753, State=0.9706, Sens=0.9118, Total=0.8235</div>
+  <div class=details>state=0.9706 * w_state=0.9000 => 0.8735<br>total=0.8235 * w_total=0.5000 => 0.4118<br>ops=11 * op_penalty=0.0100 => -0.1100<br>sum=0.8735+0.4118-0.1100 = 1.1753</div>
+  <div class=seq>seq: 6, 3, 3, 19, 11</div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>R0 W1 C(1,1,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>R1 W0 C(0,0,0)</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Down</td><td class=ops>R0 W1 C(0,0,1)</td></tr>
+  <tr><td class=idx>4</td><td class=ord>Up</td><td class=ops>C(0,1,0)</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class=header>Score=1.1865, State=1.0000, Sens=0.9706, Total=0.8529</div>
+  <div class=details>state=1.0000 * w_state=0.9000 => 0.9000<br>total=0.8529 * w_total=0.5000 => 0.4265<br>ops=14 * op_penalty=0.0100 => -0.1400<br>sum=0.9000+0.4265-0.1400 = 1.1865</div>
+  <div class=seq>seq: 6, 3, 3, 19, 11, 19</div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>R0 W1 C(1,1,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>R1 W0 C(0,0,0)</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Down</td><td class=ops>R0 W1 C(0,0,1)</td></tr>
+  <tr><td class=idx>4</td><td class=ord>Up</td><td class=ops>C(0,1,0)</td></tr>
+  <tr><td class=idx>5</td><td class=ord>Down</td><td class=ops>R1 W0 C(0,0,0)</td></tr>
+</table>
+</div>
+</div><div class=col><h2>Beam (final top 10)</h2><div class=card>
+  <div class=header>Score=1.2012, State=1.0000, Sens=0.9706, Total=0.8824</div>
+  <div class=details>state=1.0000 * w_state=0.9000 => 0.9000<br>total=0.8824 * w_total=0.5000 => 0.4412<br>ops=14 * op_penalty=0.0100 => -0.1400<br>sum=0.9000+0.4412-0.1400 = 1.2012</div>
+  <div class=seq>seq: 22, 19, 19, 3, 13, 27</div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Down</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Down</td><td class=ops>R0 W1 C(1,1,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Down</td><td class=ops>R1 W0 C(0,0,0)</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Up</td><td class=ops>R0 W1 C(1,1,0)</td></tr>
+  <tr><td class=idx>4</td><td class=ord>Up</td><td class=ops>C(0,0,0) R1 W0</td></tr>
+  <tr><td class=idx>5</td><td class=ord>Down</td><td class=ops>C(0,1,0)</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class=header>Score=1.2012, State=1.0000, Sens=0.9706, Total=0.8824</div>
+  <div class=details>state=1.0000 * w_state=0.9000 => 0.9000<br>total=0.8824 * w_total=0.5000 => 0.4412<br>ops=14 * op_penalty=0.0100 => -0.1400<br>sum=0.9000+0.4412-0.1400 = 1.2012</div>
+  <div class=seq>seq: 22, 19, 19, 3, 13, 27</div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Down</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Down</td><td class=ops>R0 W1 C(0,1,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Down</td><td class=ops>R1 W0 C(1,0,0)</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Up</td><td class=ops>R0 W1 C(1,1,0)</td></tr>
+  <tr><td class=idx>4</td><td class=ord>Up</td><td class=ops>C(0,0,0) R1 W0</td></tr>
+  <tr><td class=idx>5</td><td class=ord>Down</td><td class=ops>C(0,1,0)</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class=header>Score=1.2012, State=1.0000, Sens=0.9706, Total=0.8824</div>
+  <div class=details>state=1.0000 * w_state=0.9000 => 0.9000<br>total=0.8824 * w_total=0.5000 => 0.4412<br>ops=14 * op_penalty=0.0100 => -0.1400<br>sum=0.9000+0.4412-0.1400 = 1.2012</div>
+  <div class=seq>seq: 22, 3, 3, 19, 29, 11</div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Down</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>R0 W1 C(1,1,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>R1 W0 C(0,0,0)</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Down</td><td class=ops>R0 W1 C(0,1,1)</td></tr>
+  <tr><td class=idx>4</td><td class=ord>Down</td><td class=ops>C(0,0,0) R1 W0</td></tr>
+  <tr><td class=idx>5</td><td class=ord>Up</td><td class=ops>C(0,1,0)</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class=header>Score=1.2012, State=1.0000, Sens=0.9706, Total=0.8824</div>
+  <div class=details>state=1.0000 * w_state=0.9000 => 0.9000<br>total=0.8824 * w_total=0.5000 => 0.4412<br>ops=14 * op_penalty=0.0100 => -0.1400<br>sum=0.9000+0.4412-0.1400 = 1.2012</div>
+  <div class=seq>seq: 22, 3, 3, 19, 21, 11</div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Down</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>R0 W1 C(1,1,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>R1 W0 C(0,0,0)</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Down</td><td class=ops>R0 W1 C(0,1,1)</td></tr>
+  <tr><td class=idx>4</td><td class=ord>Down</td><td class=ops>R1 C(1,0,0) W0</td></tr>
+  <tr><td class=idx>5</td><td class=ord>Up</td><td class=ops>C(0,1,0)</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class=header>Score=1.2012, State=1.0000, Sens=0.9706, Total=0.8824</div>
+  <div class=details>state=1.0000 * w_state=0.9000 => 0.9000<br>total=0.8824 * w_total=0.5000 => 0.4412<br>ops=14 * op_penalty=0.0100 => -0.1400<br>sum=0.9000+0.4412-0.1400 = 1.2012</div>
+  <div class=seq>seq: 22, 19, 19, 3, 13, 27</div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Down</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Down</td><td class=ops>R0 W1 C(0,1,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Down</td><td class=ops>R1 W0 C(1,0,0)</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Up</td><td class=ops>R0 W1 C(1,1,0)</td></tr>
+  <tr><td class=idx>4</td><td class=ord>Up</td><td class=ops>C(0,0,1) R1 W0</td></tr>
+  <tr><td class=idx>5</td><td class=ord>Down</td><td class=ops>C(0,1,0)</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class=header>Score=1.2012, State=1.0000, Sens=0.9706, Total=0.8824</div>
+  <div class=details>state=1.0000 * w_state=0.9000 => 0.9000<br>total=0.8824 * w_total=0.5000 => 0.4412<br>ops=14 * op_penalty=0.0100 => -0.1400<br>sum=0.9000+0.4412-0.1400 = 1.2012</div>
+  <div class=seq>seq: 22, 19, 19, 3, 13, 27</div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Down</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Down</td><td class=ops>R0 W1 C(1,1,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Down</td><td class=ops>R1 W0 C(0,0,0)</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Up</td><td class=ops>R0 W1 C(1,1,0)</td></tr>
+  <tr><td class=idx>4</td><td class=ord>Up</td><td class=ops>C(0,0,1) R1 W0</td></tr>
+  <tr><td class=idx>5</td><td class=ord>Down</td><td class=ops>C(0,1,0)</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class=header>Score=1.1985, State=1.0000, Sens=0.9706, Total=0.8971</div>
+  <div class=details>state=1.0000 * w_state=0.9000 => 0.9000<br>total=0.8971 * w_total=0.5000 => 0.4485<br>ops=15 * op_penalty=0.0100 => -0.1500<br>sum=0.9000+0.4485-0.1500 = 1.1985</div>
+  <div class=seq>seq: 22, 19, 19, 3, 13, 20</div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Down</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Down</td><td class=ops>R0 W1 C(0,1,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Down</td><td class=ops>R1 W0 C(1,0,0)</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Up</td><td class=ops>R0 W1 C(1,1,0)</td></tr>
+  <tr><td class=idx>4</td><td class=ord>Up</td><td class=ops>C(0,0,1) R1 W0</td></tr>
+  <tr><td class=idx>5</td><td class=ord>Down</td><td class=ops>R0 C(0,1,0)</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class=header>Score=1.1985, State=1.0000, Sens=0.9706, Total=0.8971</div>
+  <div class=details>state=1.0000 * w_state=0.9000 => 0.9000<br>total=0.8971 * w_total=0.5000 => 0.4485<br>ops=15 * op_penalty=0.0100 => -0.1500<br>sum=0.9000+0.4485-0.1500 = 1.1985</div>
+  <div class=seq>seq: 22, 19, 19, 3, 13, 20</div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Down</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Down</td><td class=ops>R0 W1 C(1,1,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Down</td><td class=ops>R1 W0 C(0,0,0)</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Up</td><td class=ops>R0 W1 C(1,1,0)</td></tr>
+  <tr><td class=idx>4</td><td class=ord>Up</td><td class=ops>C(0,0,0) R1 W0</td></tr>
+  <tr><td class=idx>5</td><td class=ord>Down</td><td class=ops>R0 C(0,1,0)</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class=header>Score=1.1985, State=1.0000, Sens=0.9706, Total=0.8971</div>
+  <div class=details>state=1.0000 * w_state=0.9000 => 0.9000<br>total=0.8971 * w_total=0.5000 => 0.4485<br>ops=15 * op_penalty=0.0100 => -0.1500<br>sum=0.9000+0.4485-0.1500 = 1.1985</div>
+  <div class=seq>seq: 22, 19, 19, 3, 13, 28</div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Down</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Down</td><td class=ops>R0 W1 C(1,1,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Down</td><td class=ops>R1 W0 C(0,0,0)</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Up</td><td class=ops>R0 W1 C(1,1,0)</td></tr>
+  <tr><td class=idx>4</td><td class=ord>Up</td><td class=ops>C(0,0,1) R1 W0</td></tr>
+  <tr><td class=idx>5</td><td class=ord>Down</td><td class=ops>C(0,1,0) R0</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class=header>Score=1.1985, State=1.0000, Sens=0.9706, Total=0.8971</div>
+  <div class=details>state=1.0000 * w_state=0.9000 => 0.9000<br>total=0.8971 * w_total=0.5000 => 0.4485<br>ops=15 * op_penalty=0.0100 => -0.1500<br>sum=0.9000+0.4485-0.1500 = 1.1985</div>
+  <div class=seq>seq: 22, 19, 19, 3, 13, 28</div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Down</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Down</td><td class=ops>R0 W1 C(0,1,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Down</td><td class=ops>R1 W0 C(1,0,0)</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Up</td><td class=ops>R0 W1 C(1,1,0)</td></tr>
+  <tr><td class=idx>4</td><td class=ord>Up</td><td class=ops>C(0,0,0) R1 W0</td></tr>
+  <tr><td class=idx>5</td><td class=ord>Down</td><td class=ops>C(0,1,0) R0</td></tr>
+</table>
+</div>
+</div></div></body></html>

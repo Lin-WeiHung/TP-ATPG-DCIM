@@ -1,0 +1,154 @@
+<!doctype html><html><head><meta charset=utf-8><title>Template Search Report</title><style>body{font-family:sans-serif;margin:20px} .grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;} .card{border:1px solid #ccc;border-radius:8px;padding:12px;background:#fafafa} .header{font-weight:700;margin-bottom:6px} .seq{color:#555;margin-bottom:8px} table.mt{border-collapse:collapse;width:100%} table.mt td{border-bottom:1px solid #eee;padding:4px 6px} td.idx{width:40px;color:#666} td.ord{width:60px;color:#333;font-weight:600} td.ops{font-family:monospace} h2{margin-top:0} .col h2{margin-bottom:8px}</style></head><body><h1>Template Search Report</h1><div class=grid><div class=col><h2>Greedy (prefixes top 10)</h2><div class=card>
+  <div class=header>score=0.0000</div>
+  <div class=seq>seq: 6</div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class=header>score=0.3824</div>
+  <div class=seq>seq: 6, 3</div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>R0 W1 C(1,1,1)</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class=header>score=0.5735</div>
+  <div class=seq>seq: 6, 3, 3</div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>R0 W1 C(1,1,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>R1 W0 C(0,0,0)</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class=header>score=0.7647</div>
+  <div class=seq>seq: 6, 3, 3, 19</div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>R0 W1 C(1,1,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>R1 W0 C(0,0,0)</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Down</td><td class=ops>R0 W1 C(0,1,0)</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class=header>score=0.8529</div>
+  <div class=seq>seq: 6, 3, 3, 19, 19</div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>R0 W1 C(1,1,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>R1 W0 C(0,0,0)</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Down</td><td class=ops>R0 W1 C(0,1,0)</td></tr>
+  <tr><td class=idx>4</td><td class=ord>Down</td><td class=ops>R1 W0 C(0,1,1)</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class=header>score=0.9265</div>
+  <div class=seq>seq: 6, 3, 3, 19, 19, 3</div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>R0 W1 C(1,1,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>R1 W0 C(0,0,0)</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Down</td><td class=ops>R0 W1 C(0,1,0)</td></tr>
+  <tr><td class=idx>4</td><td class=ord>Down</td><td class=ops>R1 W0 C(0,1,1)</td></tr>
+  <tr><td class=idx>5</td><td class=ord>Up</td><td class=ops>R0 W1 C(1,0,0)</td></tr>
+</table>
+</div>
+</div><div class=col><h2>Beam (final top 10)</h2><div class=card>
+  <div class=header>score=0.9265</div>
+  <div class=seq>seq: 22, 3, 3, 19, 19, 19</div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Down</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>R0 W1 C(1,1,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>R1 W0 C(0,0,0)</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Down</td><td class=ops>R0 W1 C(0,1,0)</td></tr>
+  <tr><td class=idx>4</td><td class=ord>Down</td><td class=ops>R1 W0 C(1,1,1)</td></tr>
+  <tr><td class=idx>5</td><td class=ord>Down</td><td class=ops>R0 W1 C(1,0,1)</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class=header>score=0.9265</div>
+  <div class=seq>seq: 22, 3, 3, 19, 19, 19</div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Down</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>R0 W1 C(1,1,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>R1 W0 C(0,0,0)</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Down</td><td class=ops>R0 W1 C(0,0,1)</td></tr>
+  <tr><td class=idx>4</td><td class=ord>Down</td><td class=ops>R1 W0 C(1,1,1)</td></tr>
+  <tr><td class=idx>5</td><td class=ord>Down</td><td class=ops>R0 W1 C(0,1,1)</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class=header>score=0.9265</div>
+  <div class=seq>seq: 22, 3, 3, 19, 19, 19</div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Down</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>R0 W1 C(1,1,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>R1 W0 C(0,0,0)</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Down</td><td class=ops>R0 W1 C(0,0,1)</td></tr>
+  <tr><td class=idx>4</td><td class=ord>Down</td><td class=ops>R1 W0 C(1,1,1)</td></tr>
+  <tr><td class=idx>5</td><td class=ord>Down</td><td class=ops>R0 W1 C(0,1,0)</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class=header>score=0.9265</div>
+  <div class=seq>seq: 22, 3, 3, 19, 19, 3</div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Down</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>R0 W1 C(1,1,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>R1 W0 C(0,0,0)</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Down</td><td class=ops>R0 W1 C(0,1,0)</td></tr>
+  <tr><td class=idx>4</td><td class=ord>Down</td><td class=ops>R1 W0 C(1,1,1)</td></tr>
+  <tr><td class=idx>5</td><td class=ord>Up</td><td class=ops>R0 W1 C(1,0,1)</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class=header>score=0.9265</div>
+  <div class=seq>seq: 22, 3, 3, 19, 19, 3</div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Down</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>R0 W1 C(1,1,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>R1 W0 C(0,0,0)</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Down</td><td class=ops>R0 W1 C(0,1,0)</td></tr>
+  <tr><td class=idx>4</td><td class=ord>Down</td><td class=ops>R1 W0 C(1,1,1)</td></tr>
+  <tr><td class=idx>5</td><td class=ord>Up</td><td class=ops>R0 W1 C(1,0,0)</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class=header>score=0.9265</div>
+  <div class=seq>seq: 22, 3, 3, 19, 19, 19</div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Down</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>R0 W1 C(1,1,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>R1 W0 C(0,0,0)</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Down</td><td class=ops>R0 W1 C(0,1,0)</td></tr>
+  <tr><td class=idx>4</td><td class=ord>Down</td><td class=ops>R1 W0 C(1,1,1)</td></tr>
+  <tr><td class=idx>5</td><td class=ord>Down</td><td class=ops>R0 W1 C(0,0,1)</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class=header>score=0.9265</div>
+  <div class=seq>seq: 22, 3, 3, 19, 19, 3</div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Down</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>R0 W1 C(1,1,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>R1 W0 C(0,0,0)</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Down</td><td class=ops>R0 W1 C(0,1,0)</td></tr>
+  <tr><td class=idx>4</td><td class=ord>Down</td><td class=ops>R1 W0 C(0,1,1)</td></tr>
+  <tr><td class=idx>5</td><td class=ord>Up</td><td class=ops>R0 W1 C(1,0,0)</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class=header>score=0.9265</div>
+  <div class=seq>seq: 22, 3, 3, 19, 19, 3</div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Down</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>R0 W1 C(1,1,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>R1 W0 C(0,0,0)</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Down</td><td class=ops>R0 W1 C(0,1,0)</td></tr>
+  <tr><td class=idx>4</td><td class=ord>Down</td><td class=ops>R1 W0 C(0,1,1)</td></tr>
+  <tr><td class=idx>5</td><td class=ord>Up</td><td class=ops>R0 W1 C(1,0,1)</td></tr>
+</table>
+</div>
+</div></div></body></html>
