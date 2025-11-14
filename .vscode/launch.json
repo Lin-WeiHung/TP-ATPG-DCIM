@@ -1,0 +1,28 @@
+{
+    "configurations": [
+    {
+        "name": "(gdb) Launch",
+        "type": "cppdbg",
+        "request": "launch",
+        "program": "${workspaceFolder}/atpg_kdemo",
+        "args": ["input/S_C_faults.json", "--k=2", "--target=0.9", "--alpha=1", "--beta=1", "--gamma=10", "--mu=1", "--max_ops=60", "--defer-detect-only=1", "--html=output/March_Sim_Report_atpg.html"],
+        "stopAtEntry": false,
+        "cwd": "${workspaceFolder}",
+        "environment": [],
+        "externalConsole": false,
+        "MIMode": "gdb",
+        "setupCommands": [
+            {
+                "description": "啟用 gdb 的美化顯示",
+                "text": "-enable-pretty-printing",
+                "ignoreFailures": true
+            },
+            {
+                "description": "將反組譯碼變體設為 Intel",
+                "text": "-gdb-set disassembly-flavor intel",
+                "ignoreFailures": true
+            }
+        ]
+    }
+    ]
+}
