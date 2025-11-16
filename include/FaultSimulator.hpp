@@ -1059,3 +1059,143 @@ inline int OpScorer::calculate_full_masking_num(const vector<MaskOutcome>& maske
     }
     return total_M_num;
 }
+
+// =============================================================
+//  Event-based Simulation (Encapsulated) — Added without touching legacy code
+//  Provides an alternative engine that records TP lifecycle events per op.
+// =============================================================
+
+class TPEvent {
+public:
+    using EventId = size_t;
+    enum class Status { Stated, Sensitized, Detected, StateMasked, SensMasked, DetectMasked };
+private:
+    TpGid tp_gid_{};
+    EventId id_{};
+    OpId state_op_{-1};
+    std::vector<OpId> sens_ops_;      // all ops that completed sensitization path
+    OpId det_op_{-1};                 // first detect op
+    OpId mask_op_{-1};                // first masking op (sens/detect stage)
+    Status final_status_{Status::Stated};
+public:
+    TPEvent() = default;
+    TpGid tp_gid() const { return tp_gid_; }
+    EventId id() const { return id_; }
+    OpId state_op() const { return state_op_; }
+    const std::vector<OpId>& sens_ops() const { return sens_ops_; }
+    OpId det_op() const { return det_op_; }
+    OpId mask_op() const { return mask_op_; }
+    Status final_status() const { return final_status_; }
+    bool is_sens_done() const { return !sens_ops_.empty(); }
+private:
+    friend class TPEventCenter;
+    void init(TpGid gid, EventId id, OpId state_op){ tp_gid_=gid; id_=id; state_op_=state_op; final_status_=Status::Stated; }
+    void mark_state_mask(OpId op){ final_status_ = Status::StateMasked; mask_op_ = op; }
+    void add_sens_complete(OpId op){ if (sens_ops_.empty()) final_status_ = Status::Sensitized; sens_ops_.push_back(op); }
+    void mark_sens_mask(OpId op){ if (!is_sens_done()) { final_status_ = Status::SensMasked; mask_op_ = op; } }
+    void mark_detected(OpId op){ det_op_ = op; final_status_ = Status::Detected; }
+    void mark_detect_mask(OpId op){ if (final_status_ != Status::Detected) { final_status_ = Status::DetectMasked; mask_op_ = op; } }
+};
+
+class TPEventCenter {
+public:
+    enum class Stage { State, Sens, Detect };
+private:
+    std::vector<TPEvent> events_;
+    std::vector<std::vector<TPEvent::EventId>> state_begins_;   // per-op
+    std::vector<std::vector<TPEvent::EventId>> sens_done_;      // per-op
+    std::vector<std::vector<TPEvent::EventId>> detect_done_;    // per-op
+    std::vector<std::vector<TPEvent::EventId>> sens_masked_;    // per-op
+    std::vector<std::vector<TPEvent::EventId>> detect_masked_;  // per-op
+    std::vector<std::vector<TPEvent::EventId>> tp2events_;      // per-tp
+public:
+    void init(size_t op_count, size_t tp_count){
+        events_.clear();
+        state_begins_.assign(op_count, {});
+        sens_done_.assign(op_count, {});
+        detect_done_.assign(op_count, {});
+        sens_masked_.assign(op_count, {});
+        detect_masked_.assign(op_count, {});
+        tp2events_.assign(tp_count, {});
+    }
+    // accessors (read-only)
+    const std::vector<TPEvent>& events() const { return events_; }
+    const std::vector<std::vector<TPEvent::EventId>>& stateBegins() const { return state_begins_; }
+    const std::vector<std::vector<TPEvent::EventId>>& sensDone() const { return sens_done_; }
+    const std::vector<std::vector<TPEvent::EventId>>& detectDone() const { return detect_done_; }
+    const std::vector<std::vector<TPEvent::EventId>>& sensMasked() const { return sens_masked_; }
+    const std::vector<std::vector<TPEvent::EventId>>& detectMasked() const { return detect_masked_; }
+    const std::vector<std::vector<TPEvent::EventId>>& tp2events() const { return tp2events_; }
+
+    TPEvent::EventId start_state(TpGid tp, OpId op){
+        TPEvent::EventId id = events_.size();
+        TPEvent e; e.init(tp, id, op);
+        events_.push_back(e);
+        state_begins_[op].push_back(id);
+        tp2events_[tp].push_back(id);
+        return id;
+    }
+    void add_sens_complete(TPEvent::EventId id, OpId op){ events_[id].add_sens_complete(op); sens_done_[op].push_back(id); }
+    void mask_sens(TPEvent::EventId id, OpId op){ events_[id].mark_sens_mask(op); sens_masked_[op].push_back(id); }
+    void set_detect(TPEvent::EventId id, OpId op){ events_[id].mark_detected(op); detect_done_[op].push_back(id); }
+    void mask_detect(TPEvent::EventId id, OpId op){ events_[id].mark_detect_mask(op); detect_masked_[op].push_back(id); }
+
+    std::vector<TpGid> accumulate_tp_gids_upto(size_t op_idx, Stage s) const {
+        std::unordered_set<TpGid> set;
+        auto add = [&](const std::vector<std::vector<TPEvent::EventId>>& buckets){
+            size_t n = std::min(op_idx + 1, buckets.size());
+            for(size_t i=0;i<n;++i){ for(auto id: buckets[i]) set.insert(events_[id].tp_gid()); }
+        };
+        switch(s){
+            case Stage::State:  add(state_begins_); break;
+            case Stage::Sens:   add(sens_done_);    break;
+            case Stage::Detect: add(detect_done_);  break;
+        }
+        return std::vector<TpGid>(set.begin(), set.end());
+    }
+};
+
+struct SimulationEventResult {
+    vector<OpContext> op_table;
+    TPEventCenter events;
+    GroupIndex tp_group;
+};
+
+class FaultSimulatorEvent {
+public:
+    SimulationEventResult simulate(const MarchTest& mt, const std::vector<Fault>& faults, const std::vector<TestPrimitive>& tps){
+        SimulationEventResult out;
+        if (mt.elements.empty() || faults.empty()) return out;
+        out.tp_group.build(tps);
+        out.op_table = op_table_builder_.build(mt);
+        state_cover_engine_.build_tp_buckets(tps);
+        out.events.init(out.op_table.size(), tps.size());
+        for (size_t op_id = 0; op_id < out.op_table.size(); ++op_id){
+            auto state_tps = state_cover_engine_.cover(out.op_table[op_id].pre_state_key);
+            for (auto tp_gid : state_tps){
+                auto evt = out.events.start_state(tp_gid, (OpId)op_id);
+                auto sens_res = sens_engine_.cover(out.op_table, (OpId)op_id, tps[tp_gid]);
+                if (sens_res.status == SensOutcome::Status::SensNone) continue;
+                if (sens_res.status == SensOutcome::Status::SensPartial){
+                    if (sens_res.sens_mask_at_op >= 0 && sens_res.sens_mask_at_op < (int)out.op_table.size())
+                        out.events.mask_sens(evt, sens_res.sens_mask_at_op);
+                    continue;
+                }
+                out.events.add_sens_complete(evt, sens_res.sens_end_op);
+                auto det_res = detect_engine_.cover(out.op_table, sens_res.sens_end_op, tps[tp_gid]);
+                if (det_res.status == DetectOutcome::Status::Found && det_res.det_op >= 0){
+                    out.events.set_detect(evt, det_res.det_op);
+                    out.tp_group.mark_covered_if_new(tp_gid);
+                } else if (det_res.status == DetectOutcome::Status::MaskedOnD && det_res.mask_at_op >= 0)
+                    out.events.mask_detect(evt, det_res.mask_at_op);
+            }
+        }
+        return out;
+    }
+private:
+    OpTableBuilder op_table_builder_;
+    StateCoverEngine state_cover_engine_;
+    SensEngine sens_engine_;
+    DetectEngine detect_engine_;
+};
+
