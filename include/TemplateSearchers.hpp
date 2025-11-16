@@ -281,7 +281,7 @@ inline double default_score_func(const SimulationResult& sim, const MarchTest& /
 // - ops_count = sum of ops across all elements of the MarchTest provided to scorer.
 // - Weights are conservative defaults; adjust if you need stronger op penalties.
 inline double score_state_total_ops(const SimulationResult& sim, const MarchTest& mt) {
-    const double w_state = 1.0;
+    const double w_state = 0.9;
     const double w_total = 0.5;
     const double op_penalty = 0.01; // penalty per op
 

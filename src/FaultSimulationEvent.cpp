@@ -14,146 +14,9 @@
 #include <filesystem>
 #include <chrono>
 
-#include "../include/FaultSimulator.hpp"
+#include "../include/FaultSimulator.hpp" // now provides TPEvent, TPEventCenter, SimulationEventResult, FaultSimulatorEvent
 
 using std::string; using std::vector; using std::cout; using std::endl; using std::unordered_map; using std::unordered_set;
-
-// =============================
-// TPEvent + Event Center
-// =============================
-
-struct TPEvent {
-    using EventId = size_t;
-    enum class Status { Stated, Sensitized, Detected, StateMasked, SensMasked, DetectMasked };
-
-    TpGid tp_gid{};
-    EventId id{};
-    OpId state_op{-1};
-    vector<OpId> sens_ops;     // 完成致敏的 op（舊式引擎：最多一個；DontNeedSens 用 state_op）
-    int det_op{-1};
-    int mask_op{-1};           // 記錄第一個遮蔽點（sens/detect）
-    Status final_status{Status::Stated};
-
-    bool is_sens_done() const { return !sens_ops.empty(); }
-
-    void mark_state_mask(OpId op){ final_status = Status::StateMasked; mask_op = op; }
-    void add_sens_complete(OpId op){
-        if (sens_ops.empty()) final_status = Status::Sensitized;
-        sens_ops.push_back(op);
-    }
-    void mark_sens_mask(OpId op){ if (!is_sens_done()) { final_status = Status::SensMasked; mask_op = op; } }
-    void mark_detected(OpId op){ det_op = op; final_status = Status::Detected; }
-    void mark_detect_mask(OpId op){ if (final_status != Status::Detected) { final_status = Status::DetectMasked; mask_op = op; } }
-};
-
-struct TPEventCenter {
-    // data
-    vector<TPEvent> events;
-    vector<vector<TPEvent::EventId>> state_begins;   // per-op
-    vector<vector<TPEvent::EventId>> sens_done;      // per-op
-    vector<vector<TPEvent::EventId>> detect_done;    // per-op
-    vector<vector<TPEvent::EventId>> sens_masked;    // per-op
-    vector<vector<TPEvent::EventId>> detect_masked;  // per-op
-
-    vector<vector<TPEvent::EventId>> tp2events;      // per-tp
-
-    void init(size_t op_count, size_t tp_count){
-        events.clear();
-        state_begins.assign(op_count, {});
-        sens_done.assign(op_count, {});
-        detect_done.assign(op_count, {});
-        sens_masked.assign(op_count, {});
-        detect_masked.assign(op_count, {});
-        tp2events.assign(tp_count, {});
-    }
-
-    TPEvent::EventId start_state(TpGid tp, OpId op){
-        TPEvent::EventId id = events.size();
-        TPEvent e; e.tp_gid = tp; e.id = id; e.state_op = op; e.final_status = TPEvent::Status::Stated;
-        events.push_back(e);
-        state_begins[op].push_back(id);
-        tp2events[tp].push_back(id);
-        return id;
-    }
-    void add_sens_complete(TPEvent::EventId id, OpId op){ events[id].add_sens_complete(op); sens_done[op].push_back(id); }
-    void mask_sens(TPEvent::EventId id, OpId op){ events[id].mark_sens_mask(op); sens_masked[op].push_back(id); }
-    void set_detect(TPEvent::EventId id, OpId op){ events[id].mark_detected(op); detect_done[op].push_back(id); }
-    void mask_detect(TPEvent::EventId id, OpId op){ events[id].mark_detect_mask(op); detect_masked[op].push_back(id); }
-
-    // accumulate tp gids up to op index for a stage
-    enum class Stage { State, Sens, Detect };
-    vector<TpGid> accumulate_tp_gids_upto(size_t op_idx, Stage s) const {
-        unordered_set<TpGid> set;
-        auto add = [&](const vector<vector<TPEvent::EventId>>& buckets){
-            size_t n = std::min(op_idx+1, buckets.size());
-            for(size_t i=0;i<n;++i){ for(auto id: buckets[i]) set.insert(events[id].tp_gid); }
-        };
-        switch(s){
-            case Stage::State:  add(state_begins); break;
-            case Stage::Sens:   add(sens_done);    break;
-            case Stage::Detect: add(detect_done);  break;
-        }
-        return vector<TpGid>(set.begin(), set.end());
-    }
-};
-
-// =============================
-// FaultSimulatorEvent — 沿用舊引擎，改以 TPEvent 記錄
-// =============================
-
-struct SimulationEventResult {
-    vector<OpContext> op_table;
-    TPEventCenter events;
-};
-
-class FaultSimulatorEvent {
-public:
-    SimulationEventResult simulate(const MarchTest& mt, const vector<Fault>& faults, const vector<TestPrimitive>& tps);
-private:
-    OpTableBuilder op_table_builder;
-    StateCoverEngine state_cover_engine;
-    SensEngine sens_engine;
-    DetectEngine detect_engine;
-};
-
-SimulationEventResult FaultSimulatorEvent::simulate(const MarchTest& mt, const vector<Fault>& faults, const vector<TestPrimitive>& tps){
-    SimulationEventResult out;
-    if (mt.elements.empty() || faults.empty()) return out;
-    // 1) op table
-    out.op_table = op_table_builder.build(mt);
-    // 2) buckets for state
-    state_cover_engine.build_tp_buckets(tps);
-    // 3) events
-    out.events.init(out.op_table.size(), tps.size());
-
-    for (size_t op_id = 0; op_id < out.op_table.size(); ++op_id){
-        // state
-        auto state_tps = state_cover_engine.cover(out.op_table[op_id].pre_state_key);
-        for (auto tp_gid : state_tps){
-            auto evt = out.events.start_state(tp_gid, (OpId)op_id);
-            // sens
-            auto sens_res = sens_engine.cover(out.op_table, (OpId)op_id, tps[tp_gid]);
-            if (sens_res.status == SensOutcome::Status::SensNone) {
-                continue; // 舊版：未致敏就不偵測
-            }
-            if (sens_res.status == SensOutcome::Status::SensPartial) {
-                if (sens_res.sens_mask_at_op >= 0 && sens_res.sens_mask_at_op < (int)out.op_table.size())
-                    out.events.mask_sens(evt, sens_res.sens_mask_at_op);
-                continue;
-            }
-            // SensAll 或 DontNeedSens 都視為完成致敏，使用 sens_end_op
-            out.events.add_sens_complete(evt, sens_res.sens_end_op);
-
-            // detect
-            auto det_res = detect_engine.cover(out.op_table, sens_res.sens_end_op, tps[tp_gid]);
-            if (det_res.status == DetectOutcome::Status::Found && det_res.det_op >= 0)
-                out.events.set_detect(evt, det_res.det_op);
-            else if (det_res.status == DetectOutcome::Status::MaskedOnD && det_res.mask_at_op >= 0)
-                out.events.mask_detect(evt, det_res.mask_at_op);
-        }
-    }
-    return out;
-}
 
 // =============================
 // HTML writers（對齊 MarchSimHtml.cpp 的外觀與結構）
@@ -168,6 +31,19 @@ static string make_anchor_id(const string& raw){ string id; id.reserve(raw.size(
 static string op_repr(const Op& op){ auto bit=[](Val v){ return v==Val::Zero?'0':v==Val::One?'1':'-'; }; if (op.kind==OpKind::Write){ if (op.value==Val::Zero) return string("W0"); if (op.value==Val::One) return string("W1"); return string("W-"); } else if (op.kind==OpKind::Read){ if (op.value==Val::Zero) return string("R0"); if (op.value==Val::One) return string("R1"); return string("R-"); } else { std::string s="C("; s.push_back(bit(op.C_T)); s+=")("; s.push_back(bit(op.C_M)); s+=")("; s.push_back(bit(op.C_B)); s+=")"; return s; } }
 static string detect_repr(const Detector& d){ if (d.detectOp.kind==OpKind::Read){ if (d.detectOp.value==Val::Zero) return "R0"; if (d.detectOp.value==Val::One) return "R1"; return string("R-"); } if (d.detectOp.kind==OpKind::ComputeAnd){ auto b=[](Val v){ return v==Val::Zero?'0':v==Val::One?'1':'-'; }; std::string s="C("; s.push_back(b(d.detectOp.C_T)); s+=")("; s.push_back(b(d.detectOp.C_M)); s+=")("; s.push_back(b(d.detectOp.C_B)); s+=")"; return s; } return string("?"); }
 static string state_cell(Val d, Val c){ std::ostringstream os; os<<v2s(d)<<","<<v2s(c); return os.str(); }
+
+// 將 TPEvent::Status 轉字串（新增功能需要）
+static const char* tpe_status_str(TPEvent::Status s){
+    switch(s){
+        case TPEvent::Status::Stated: return "Stated";
+        case TPEvent::Status::Sensitized: return "Sensitized";
+        case TPEvent::Status::Detected: return "Detected";
+        case TPEvent::Status::StateMasked: return "StateMasked";
+        case TPEvent::Status::SensMasked: return "SensMasked";
+        case TPEvent::Status::DetectMasked: return "DetectMasked";
+    }
+    return "?";
+}
 
 static void write_fault_anchors(std::ostream& os, const vector<RawFault>& raws){ os << "<section id=\"fault-anchors\" style=\"display:none\">"; for (const auto& rf : raws){ os << "<div id=\"fault-"<< make_anchor_id(rf.fault_id) << "\"></div>"; } os << "</section>"; }
 static void write_tp_details(std::ostream& os, const TestPrimitive& tp, const RawFault* raw_fault, bool show_state, bool show_sens, bool show_detect){
@@ -238,9 +114,12 @@ static void write_state_table(std::ostream& os, const SimulationEventResult& sim
         // TPs
         // 以 tp_gid 去重，避免同一 op 重複列出，並按 gid 升冪排序
         unordered_set<size_t> seen; vector<size_t> unique_tp;
-        unique_tp.reserve(sim.events.state_begins[i].size());
-        for (auto eid : sim.events.state_begins[i]){
-            size_t gid = sim.events.events[eid].tp_gid; if (seen.insert(gid).second) unique_tp.push_back(gid);
+        const auto& begins = sim.events.stateBegins();
+        if (i < begins.size()){
+            unique_tp.reserve(begins[i].size());
+            for (auto eid : begins[i]){
+                size_t gid = sim.events.events()[eid].tp_gid(); if (seen.insert(gid).second) unique_tp.push_back(gid);
+            }
         }
         std::sort(unique_tp.begin(), unique_tp.end());
         os << "<td><details><summary>TPs ("<< unique_tp.size() <<")</summary>";
@@ -270,8 +149,12 @@ static void write_sens_table(std::ostream& os, const SimulationEventResult& sim,
             std::ostringstream ss; ss.setf(std::ios::fixed); ss<< std::setprecision(2) << pct << "%"; os << "<td>"<< ss.str() <<"</td>";
         }
         // 以 tp_gid 去重並排序
-        unordered_set<size_t> seen; vector<size_t> unique_tp; unique_tp.reserve(sim.events.sens_done[i].size());
-        for (auto eid : sim.events.sens_done[i]){ size_t gid = sim.events.events[eid].tp_gid; if (seen.insert(gid).second) unique_tp.push_back(gid); }
+        unordered_set<size_t> seen; vector<size_t> unique_tp; 
+        const auto& sdone = sim.events.sensDone();
+        if (i < sdone.size()){
+            unique_tp.reserve(sdone[i].size());
+            for (auto eid : sdone[i]){ size_t gid = sim.events.events()[eid].tp_gid(); if (seen.insert(gid).second) unique_tp.push_back(gid); }
+        }
         std::sort(unique_tp.begin(), unique_tp.end());
         os << "<td><details><summary>TPs ("<< unique_tp.size() <<")</summary>";
         for (auto gid : unique_tp){
@@ -300,8 +183,12 @@ static void write_detect_table(std::ostream& os, const SimulationEventResult& si
             std::ostringstream ss; ss.setf(std::ios::fixed); ss<< std::setprecision(2) << pct << "%"; os << "<td>"<< ss.str() <<"</td>";
         }
         // 以 tp_gid 去重並排序
-        unordered_set<size_t> seen; vector<size_t> unique_tp; unique_tp.reserve(sim.events.detect_done[i].size());
-        for (auto eid : sim.events.detect_done[i]){ size_t gid = sim.events.events[eid].tp_gid; if (seen.insert(gid).second) unique_tp.push_back(gid); }
+        unordered_set<size_t> seen; vector<size_t> unique_tp; 
+        const auto& ddone = sim.events.detectDone();
+        if (i < ddone.size()){
+            unique_tp.reserve(ddone[i].size());
+            for (auto eid : ddone[i]){ size_t gid = sim.events.events()[eid].tp_gid(); if (seen.insert(gid).second) unique_tp.push_back(gid); }
+        }
         std::sort(unique_tp.begin(), unique_tp.end());
         os << "<td><details><summary>TPs ("<< unique_tp.size() <<")</summary>";
         for (auto gid : unique_tp){
@@ -322,7 +209,7 @@ static void write_faults_coverage_table(std::ostream& os,
                                         const unordered_map<string, size_t>& raw_index_by_id){
     // 蒐集被偵測到的 tp 集合（以 tp_gid 為鍵）
     unordered_set<size_t> detected_tp_set;
-    for (const auto& bucket : sim.events.detect_done){ for (auto eid : bucket) detected_tp_set.insert(sim.events.events[eid].tp_gid); }
+    for (const auto& bucket : sim.events.detectDone()){ for (auto eid : bucket) detected_tp_set.insert(sim.events.events()[eid].tp_gid()); }
 
     os << "<details><summary>Fault coverage summary ("<< faults.size() <<")</summary>";
     os << "<table class=\"striped\"><thead><tr><th>#</th><th>Fault ID</th><th>Coverage</th><th>TPs</th></tr></thead><tbody>";
@@ -423,14 +310,14 @@ int main(int argc, char** argv){
         if (!warnings.empty()){ ofs << "<details open><summary>Warnings ("<< warnings.size() <<")</summary><ul>"; for (const auto& w: warnings) ofs << "<li>"<< html_escape(w) <<"</li>"; ofs << "</ul></details>"; }
         write_fault_anchors(ofs, raw_faults);
 
-        FaultSimulatorEvent simulator;
+        FaultSimulatorEvent simulator; // new encapsulated event simulator from header
         auto t3s=clock::now(); long long per_tests_sum_us=0;
         for (size_t mi=0; mi<marchTests.size(); ++mi){ const auto& mt = marchTests[mi]; auto tms=clock::now();
             auto sim = simulator.simulate(mt, faults, all_tps); auto tme=clock::now(); auto us = to_us(tme-tms); per_tests_sum_us += us;
             // total coverage（沿用舊版：等於 detect_coverage across faults 的平均）
             // 蒐集被偵測到的 tp 集合
             unordered_set<size_t> detected_tp_set;
-            for (const auto& bucket : sim.events.detect_done){ for (auto eid : bucket) detected_tp_set.insert(sim.events.events[eid].tp_gid); }
+            for (const auto& bucket : sim.events.detectDone()){ for (auto eid : bucket) detected_tp_set.insert(sim.events.events()[eid].tp_gid()); }
             // 計算每個 fault 的 coverage
             double sum_fault_cov = 0.0;
             for (const auto& f : faults){
@@ -459,6 +346,76 @@ int main(int argc, char** argv){
             write_sens_table (ofs, sim, all_tps, raw_faults, raw_index_by_id, faults);
             write_detect_table(ofs, sim, all_tps, raw_faults, raw_index_by_id, faults);
             write_faults_coverage_table(ofs, sim, faults, all_tps, raw_faults, raw_index_by_id);
+            // ============= 新增：輸出尚未覆蓋的 TP 群組與其成員的 TPEvent 詳細資訊 =============
+            {
+                // 蒐集已偵測 TP 並標記群組
+                std::vector<bool> group_detected(sim.tp_group.total_groups(), false);
+                const auto& ddone = sim.events.detectDone();
+                for (size_t op=0; op<ddone.size(); ++op){
+                    for (auto eid : ddone[op]){
+                        const auto& ev = sim.events.events()[eid];
+                        int gid = sim.tp_group.group_of_tp(ev.tp_gid());
+                        if (gid >= 0 && gid < (int)group_detected.size()) group_detected[gid] = true;
+                    }
+                }
+                // 桶：群組 -> TP 列表
+                std::vector<std::vector<size_t>> group_members(sim.tp_group.total_groups());
+                for (size_t tp_gid=0; tp_gid<all_tps.size(); ++tp_gid){
+                    int g = sim.tp_group.group_of_tp(tp_gid);
+                    if (g>=0 && g<(int)group_members.size()) group_members[g].push_back(tp_gid);
+                }
+                // 未覆蓋群組列表
+                std::vector<int> uncovered_groups;
+                for (int g=0; g<(int)group_detected.size(); ++g){ if (!group_detected[g]) uncovered_groups.push_back(g); }
+                ofs << "<details><summary>Uncovered TP Groups ("<< uncovered_groups.size() <<")</summary>";
+                if (uncovered_groups.empty()){
+                    ofs << "<p>All groups covered.</p>";
+                } else {
+                    ofs << "<table class=striped><thead><tr><th>GroupId</th><th>Members (details)</th><th>Events</th></tr></thead><tbody>";
+                    for (int gid : uncovered_groups){
+                        ofs << "<tr><td>"<< gid <<"</td><td style='text-align:left'>";
+                        const auto& members = group_members[gid];
+                        for (auto tp_gid : members){
+                            if (tp_gid >= all_tps.size()) continue;
+                            const auto& tp = all_tps[tp_gid];
+                            const RawFault* rf = nullptr; if (auto it = raw_index_by_id.find(tp.parent_fault_id); it!=raw_index_by_id.end()) rf = &raw_faults[it->second];
+                            ofs << "<details><summary>tp "<< tp_gid <<"</summary>";
+                            // 重新使用 write_tp_details 顯示 Fault / Primitive / Group / State / Ops / Detector
+                            write_tp_details(ofs, tp, rf, true, true, true);
+                            ofs << "</details>";
+                        }
+                        ofs << "</td><td>";
+                        // 對每個成員列出其所有事件
+                        for (auto tp_gid : members){
+                            ofs << "<details><summary>tp "<< tp_gid <<"</summary>";
+                            // 事件 IDs
+                            if (tp_gid < sim.events.tp2events().size()){
+                                const auto& eids = sim.events.tp2events()[tp_gid];
+                                if (eids.empty()){
+                                    ofs << "<div class=tpd><em>No events</em></div>";
+                                } else {
+                                    ofs << "<table style='margin:4px 0;border-collapse:collapse' class='inner'><thead><tr><th>EvtId</th><th>Status</th><th>StateOp</th><th>SensOps</th><th>DetectOp</th><th>MaskOp</th></tr></thead><tbody>";
+                                    for (auto eid : eids){
+                                        if (eid >= sim.events.events().size()) continue;
+                                        const auto& tev = sim.events.events()[eid];
+                                        ofs << "<tr><td>"<< eid <<"</td><td>"<< tpe_status_str(tev.final_status()) <<"</td><td>"<< tev.state_op() <<"</td><td>";
+                                        if (tev.sens_ops().empty()) ofs << "-"; else { for (size_t si=0; si<tev.sens_ops().size(); ++si){ if(si) ofs<<","; ofs<< tev.sens_ops()[si]; } }
+                                        ofs << "</td><td>"<< (tev.det_op()>=0?std::to_string(tev.det_op()):string("-")) <<"</td><td>"<< (tev.mask_op()>=0?std::to_string(tev.mask_op()):string("-")) <<"</td></tr>";
+                                    }
+                                    ofs << "</tbody></table>";
+                                }
+                            } else {
+                                ofs << "<div class=tpd><em>tp2events missing</em></div>";
+                            }
+                            ofs << "</details>";
+                        }
+                        ofs << "</td></tr>";
+                    }
+                    ofs << "</tbody></table>";
+                }
+                ofs << "</details>";
+            }
+            // ================================================================
             ofs << "</details>\n";
             cout << "[時間] 3) 模擬+輸出 March Test '"<< mt.name <<"': "<< us <<" us (ops="<< sim.op_table.size() <<")\n";
         }
