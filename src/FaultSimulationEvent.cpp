@@ -1,3 +1,6 @@
+// g++ -std=c++20 -O2 -Wall -Wextra -Iinclude src/FaultSimulationEvent.cpp -o build/FaultSimulationEvent
+// ./build/FaultSimulationEvent input/S_C_faults.json input/MarchTest.json output/March_Sim_Report_event.html
+
 #include <iostream>
 #include <fstream>
 #include <sstream>

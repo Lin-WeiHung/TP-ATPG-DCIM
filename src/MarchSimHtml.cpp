@@ -89,6 +89,7 @@
 #include <vector>
 #include <filesystem>
 #include <chrono>
+#include <algorithm>
 
 #include "../include/FaultSimulator.hpp"
 #include <nlohmann/json.hpp>
@@ -382,8 +383,11 @@ static void write_state_cover_table(std::ostream& os, const SimulationResult& si
 			std::ostringstream covss; covss.setf(std::ios::fixed); covss<< std::setprecision(2) << (avg*100.0) << "%";
 			os << "<td>"<< covss.str() <<"</td>";
 		}
-		os << "<td><details><summary>TPs ("<< cl.state_cover.size() <<")</summary>";
-		for (size_t tp_gid : cl.state_cover){
+		// 排序 TP gids（原本為生成順序，改為升冪）
+		std::vector<size_t> sorted_gids = cl.state_cover;
+		std::sort(sorted_gids.begin(), sorted_gids.end());
+		os << "<td><details><summary>TPs ("<< sorted_gids.size() <<")</summary>";
+		for (size_t tp_gid : sorted_gids){
 			const auto& tp = tps[tp_gid];
 			const RawFault* rf = nullptr;
 			if (auto it = raw_index_by_id.find(tp.parent_fault_id); it!=raw_index_by_id.end())
@@ -444,8 +448,10 @@ static void write_sens_cover_table(std::ostream& os, const SimulationResult& sim
 			std::ostringstream covss; covss.setf(std::ios::fixed); covss<< std::setprecision(2) << (avg*100.0) << "%";
 			os << "<td>"<< covss.str() <<"</td>";
 		}
-		os << "<td><details><summary>TPs ("<< cl.sens_cover.size() <<")</summary>";
-		for (size_t tp_gid : cl.sens_cover){
+		std::vector<size_t> sorted_gids = cl.sens_cover;
+		std::sort(sorted_gids.begin(), sorted_gids.end());
+		os << "<td><details><summary>TPs ("<< sorted_gids.size() <<")</summary>";
+		for (size_t tp_gid : sorted_gids){
 			const auto& tp = tps[tp_gid];
 			const RawFault* rf = nullptr;
 			if (auto it = raw_index_by_id.find(tp.parent_fault_id); it!=raw_index_by_id.end())
@@ -506,8 +512,10 @@ static void write_detect_cover_table(std::ostream& os, const SimulationResult& s
 			std::ostringstream covss; covss.setf(std::ios::fixed); covss<< std::setprecision(2) << (avg*100.0) << "%";
 			os << "<td>"<< covss.str() <<"</td>";
 		}
-		os << "<td><details><summary>TPs ("<< cl.det_cover.size() <<")</summary>";
-		for (size_t tp_gid : cl.det_cover){
+		std::vector<size_t> sorted_gids = cl.det_cover;
+		std::sort(sorted_gids.begin(), sorted_gids.end());
+		os << "<td><details><summary>TPs ("<< sorted_gids.size() <<")</summary>";
+		for (size_t tp_gid : sorted_gids){
 			const auto& tp = tps[tp_gid];
 			const RawFault* rf = nullptr;
 			if (auto it = raw_index_by_id.find(tp.parent_fault_id); it!=raw_index_by_id.end())
@@ -646,8 +654,10 @@ static void write_faults_coverage_table(std::ostream& os,
 		}
 
 		// Detected（不再顯示 occurrences 細節）
-		os << "<details><summary>Detected ("<< detected_tp_set.size() <<")</summary>";
-		for (const auto& tp_gid : detected_tp_set){
+		std::vector<size_t> detected_sorted(detected_tp_set.begin(), detected_tp_set.end());
+		std::sort(detected_sorted.begin(), detected_sorted.end());
+		os << "<details><summary>Detected ("<< detected_sorted.size() <<")</summary>";
+		for (const auto& tp_gid : detected_sorted){
 			const auto& tp = tps[tp_gid];
 			const RawFault* rf = nullptr;
 			if (auto rit = raw_index_by_id.find(tp.parent_fault_id); rit!=raw_index_by_id.end())
@@ -660,6 +670,7 @@ static void write_faults_coverage_table(std::ostream& os,
 		os << "</details>"; // Detected
 
 		// Undetected
+		std::sort(undetected_tp_gids.begin(), undetected_tp_gids.end());
 		os << "<details><summary>Undetected ("<< undetected_tp_gids.size() <<")</summary>";
 		for (size_t tp_gid : undetected_tp_gids){
 			const auto& tp = tps[tp_gid];
