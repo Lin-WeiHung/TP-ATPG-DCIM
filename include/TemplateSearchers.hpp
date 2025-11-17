@@ -20,6 +20,7 @@
 #include <stdexcept>
 #include <functional> // v2: for ScoreFunc
 #include <sstream>
+#include <cstddef>
 
 #include "FaultSimulator.hpp" // uses your existing simulator types & simulate(). :contentReference[oaicite:1]{index=1}
 
@@ -42,38 +43,50 @@ struct TemplateSlot {
     TemplateOpKind kind{TemplateOpKind::None};
 };
 
-// ElementTemplate: a small pattern of up to 3 ops in one march element
+// ElementTemplate: a small pattern of N ops (dynamically sized) in one march element
 class ElementTemplate {
 public:
     ElementTemplate() = default;
+    // Backward-compatible ctor for 3-slot pattern
     ElementTemplate(AddrOrder ord, TemplateOpKind a, TemplateOpKind b, TemplateOpKind c) {
         order = ord;
-        slots[0].kind = a; slots[1].kind = b; slots[2].kind = c;
+        slots_.reserve(3);
+        slots_.push_back(TemplateSlot{a});
+        slots_.push_back(TemplateSlot{b});
+        slots_.push_back(TemplateSlot{c});
+    }
+    // New ctor: provide arbitrary slot kinds
+    ElementTemplate(AddrOrder ord, const std::vector<TemplateOpKind>& kinds) {
+        order = ord;
+        slots_.reserve(kinds.size());
+        for (auto k : kinds) slots_.push_back(TemplateSlot{k});
     }
     // Accessors for generator/consumers
     AddrOrder get_order() const { return order; }
-    const array<TemplateSlot,3>& get_slots() const { return slots; }
-    // local validity checks: no "hole" (X - X) and at most one R/W/C
+    const std::vector<TemplateSlot>& get_slots() const { return slots_; }
+    std::size_t slot_count() const { return slots_.size(); }
+    // local validity checks: no "hole" (X - X) and at most one R/W
     bool is_valid() const {
         if (has_hole()) return false;
-        if (has_multiple_rwc()) return false;
+        // if (has_multiple_rwc()) return false;
+        if (has_multiple_rw()) return false;
         return true;
     }
     // Helpers for sequence-level rules & heuristics
     bool has_kind(TemplateOpKind k) const {
-        for (const auto& s : slots) if (s.kind == k) return true;
+        for (const auto& s : slots_) if (s.kind == k) return true;
         return false;
     }
     int count_non_none() const {
-        int c=0; for (const auto& s: slots) if (s.kind!=TemplateOpKind::None) ++c; return c;
+        int c=0; for (const auto& s: slots_) if (s.kind!=TemplateOpKind::None) ++c; return c;
     }
 private:
     AddrOrder order{AddrOrder::Any};
-    array<TemplateSlot,3> slots{};
+    std::vector<TemplateSlot> slots_{};
 
     bool has_hole() const {
         bool seen_none=false;
-        for (const auto& s : slots) {
+        for (const auto& s : slots_) {
             if (s.kind == TemplateOpKind::None) {
                 seen_none = true;
             } else {
@@ -84,12 +97,20 @@ private:
     }
     bool has_multiple_rwc() const {
         int cntR=0,cntW=0,cntC=0;
-        for (const auto& s : slots) {
+        for (const auto& s : slots_) {
             if (s.kind == TemplateOpKind::Read) ++cntR;
             if (s.kind == TemplateOpKind::Write) ++cntW;
             if (s.kind == TemplateOpKind::Compute) ++cntC;
         }
         return (cntR>1 || cntW>1 || cntC>1);
+    }
+    bool has_multiple_rw() const {
+        int cntR=0,cntW=0;
+        for (const auto& s : slots_) {
+            if (s.kind == TemplateOpKind::Read) ++cntR;
+            if (s.kind == TemplateOpKind::Write) ++cntW;
+        }
+        return (cntR>1 || cntW>1);
     }
 };
 
@@ -100,26 +121,35 @@ public:
 
     TemplateLibrary() = default;
 
-    static TemplateLibrary make_bruce() { // v2: static factory that enumerates all valid 3-slot templates
+    // v3: static factory that enumerates all valid templates with dynamic slot count
+    static TemplateLibrary make_bruce(std::size_t slot_count = 3) {
         TemplateLibrary lib;
+        if (slot_count == 0) return lib;
+
+        // Build all combinations via iterative counting over 4^slot_count
+        const TemplateOpKind kinds[4] = {
+            TemplateOpKind::None,
+            TemplateOpKind::Read,
+            TemplateOpKind::Write,
+            TemplateOpKind::Compute
+        };
+
+        // iterate for Up and Down
         for (AddrOrder ord : {AddrOrder::Up, AddrOrder::Down}) {
-            // brute-force all combinations of the 4 TemplateOpKind values into 3 slots
-            for (TemplateOpKind a : {TemplateOpKind::None,
-                                     TemplateOpKind::Read,
-                                     TemplateOpKind::Write,
-                                     TemplateOpKind::Compute}) {
-                for (TemplateOpKind b : {TemplateOpKind::None,
-                                         TemplateOpKind::Read,
-                                         TemplateOpKind::Write,
-                                         TemplateOpKind::Compute}) {
-                    for (TemplateOpKind c : {TemplateOpKind::None,
-                                             TemplateOpKind::Read,
-                                             TemplateOpKind::Write,
-                                             TemplateOpKind::Compute}) {
-                        ElementTemplate et(ord, a, b, c);
-                        if (et.is_valid()) lib.templates_.push_back(et);
-                    }
+            // total combinations = 4^slot_count (use integer math to avoid fp rounding)
+            std::size_t combos = 1;
+            for (std::size_t i = 0; i < slot_count; ++i) combos *= 4u;
+            for (std::size_t idx = 0; idx < combos; ++idx) {
+                std::vector<TemplateOpKind> seq;
+                seq.resize(slot_count, TemplateOpKind::None);
+                std::size_t t = idx;
+                for (std::size_t p = 0; p < slot_count; ++p) {
+                    std::size_t digit = t % 4;
+                    t /= 4;
+                    seq[p] = kinds[digit];
                 }
+                ElementTemplate et(ord, seq);
+                if (et.is_valid()) lib.templates_.push_back(et);
             }
         }
         return lib;
@@ -187,21 +217,22 @@ public:
         const auto order = et.get_order();
 
         // 計算所需的 bit 數（R/W 1 bit；Compute 3 bits）
-        struct SlotBits { TemplateOpKind kind; int base; };
-        array<SlotBits,3> specs{};
-        int cursor = 0;
-        for (int i = 0; i < 3; ++i) {
-            specs[i].kind = slots[i].kind;
-            specs[i].base = cursor;
+        struct SlotBits { TemplateOpKind kind; std::size_t base; };
+        std::vector<SlotBits> specs;
+        specs.reserve(slots.size());
+        std::size_t cursor = 0;
+        for (std::size_t i = 0; i < slots.size(); ++i) {
+            SlotBits sb{slots[i].kind, cursor};
             switch (slots[i].kind) {
                 case TemplateOpKind::None:    cursor += 0; break;
                 case TemplateOpKind::Read:    cursor += 1; break;
                 case TemplateOpKind::Write:   cursor += 1; break;
                 case TemplateOpKind::Compute: cursor += 3; break;
             }
+            specs.push_back(sb);
         }
 
-        const int total_bits = cursor;
+        const std::size_t total_bits = cursor;
         if (total_bits == 0) {
             // 無任何操作：仍回傳一個空元素（只有 order）
             MarchElement e; e.order = order; // ops 保持空
@@ -209,37 +240,42 @@ public:
             return out;
         }
 
-        const int total_masks = 1 << total_bits;
+        if (total_bits >= (sizeof(std::size_t) * 8)) {
+            // 避免移位溢位；在極端情況下直接返回空（或可改為截斷）
+            return out;
+        }
+
+        const std::size_t total_masks = (static_cast<std::size_t>(1) << total_bits);
         out.reserve(total_masks);
 
-        for (int mask = 0; mask < total_masks; ++mask) {
+        for (std::size_t mask = 0; mask < total_masks; ++mask) {
             MarchElement e; e.order = order;
             // 依 slot 順序建立 ops
-            for (int i = 0; i < 3; ++i) {
+            for (std::size_t i = 0; i < specs.size(); ++i) {
                 const auto kind = specs[i].kind;
-                const int base = specs[i].base;
+                const std::size_t base = specs[i].base;
                 switch (kind) {
                     case TemplateOpKind::None:
                         break;
                     case TemplateOpKind::Read: {
                         Op o; o.kind = OpKind::Read;
-                        const int bit = (mask >> base) & 1;
+                        const std::size_t bit = (mask >> base) & 1u;
                         o.value = bit ? Val::One : Val::Zero;
                         e.ops.push_back(o);
                         break;
                     }
                     case TemplateOpKind::Write: {
                         Op o; o.kind = OpKind::Write;
-                        const int bit = (mask >> base) & 1;
+                        const std::size_t bit = (mask >> base) & 1u;
                         o.value = bit ? Val::One : Val::Zero;
                         e.ops.push_back(o);
                         break;
                     }
                     case TemplateOpKind::Compute: {
                         Op o; o.kind = OpKind::ComputeAnd;
-                        const int bT = (mask >> (base+0)) & 1;
-                        const int bM = (mask >> (base+1)) & 1;
-                        const int bB = (mask >> (base+2)) & 1;
+                        const std::size_t bT = (mask >> (base+0)) & 1u;
+                        const std::size_t bM = (mask >> (base+1)) & 1u;
+                        const std::size_t bB = (mask >> (base+2)) & 1u;
                         o.C_T = bT ? Val::One : Val::Zero;
                         o.C_M = bM ? Val::One : Val::Zero;
                         o.C_B = bB ? Val::One : Val::Zero;
@@ -358,7 +394,7 @@ private:
     std::vector<std::shared_ptr<ISequenceConstraint>> constraints_;
 };
 
-// v2: example constraint – first element must be W-only
+// v2: first element must be W-only
 class FirstElementWriteOnlyConstraint : public ISequenceConstraint {
 public:
     bool allow(const PrefixState& prefix,
@@ -380,7 +416,7 @@ public:
     }
 };
 
-// v2: example constraint – D=0 forbids R1, D=1 forbids R0
+// v2: D=0 forbids R1, D=1 forbids R0
 class DataReadPolarityConstraint : public ISequenceConstraint {
 public:
     bool allow(const PrefixState& prefix,
@@ -414,6 +450,28 @@ public:
             }
         }
         ++prefix.length;
+    }
+};
+
+// v3: first element must have at least one Write and no Read
+class FirstElementHasWriteNoReadConstraint : public ISequenceConstraint {
+public:
+    bool allow(const PrefixState& prefix,
+               const MarchElement& elem,
+               std::size_t pos) const override {
+        // Only restrict the very first element of the sequence
+        if (pos != 0 && prefix.length != 0) return true;
+
+        bool has_write = false;
+        for (const auto& op : elem.ops) {
+            if (op.kind == OpKind::Write) {
+                has_write = true;
+            } else if (op.kind == OpKind::Read) {
+                // Disallow any R in the first element
+                return false;
+            }
+        }
+        return has_write;
     }
 };
 
@@ -543,7 +601,8 @@ public:
                          size_t beam_width = 8,
                          std::unique_ptr<ICandidateGenerator> gen = std::make_unique<ValueExpandingGenerator>(),
                          ScoreFunc scorer = default_score_func, // v2: pluggable scoring
-                         const SequenceConstraintSet* constraints = nullptr) // v2: optional sequence constraints
+                         const SequenceConstraintSet* constraints = nullptr, // v2: optional sequence constraints
+                         std::function<void(std::size_t /*level*/, std::size_t /*candidates*/, std::size_t /*kept*/)> progress_cb = nullptr) // v3: optional progress callback
         : sim_(simulator)
         , lib_(lib)
         , faults_(faults)
@@ -552,6 +611,7 @@ public:
         , gen_(std::move(gen))
         , scorer_(std::move(scorer)) // v2
         , constraints_(constraints)   // v2
+        , progress_cb_(std::move(progress_cb)) // v3
         {}
 
     // Run beam search for length L, produce up to top_k final candidates (sorted by score desc)
@@ -625,6 +685,11 @@ public:
             size_t keep = std::min(beam_width_, candidates.size());
             beam.clear();
             beam.insert(beam.end(), candidates.begin(), candidates.begin() + keep);
+
+            // v3: progress callback per level
+            if (progress_cb_) {
+                progress_cb_(pos+1, candidates.size(), keep);
+            }
         }
 
         // beam now contains final prefixes; convert to CandidateResult and sort by score
@@ -654,6 +719,7 @@ private:
     std::unique_ptr<ICandidateGenerator> gen_;
     ScoreFunc scorer_;                        // v2: scoring strategy
     const SequenceConstraintSet* constraints_; // v2: optional sequence constraints
+    std::function<void(std::size_t,std::size_t,std::size_t)> progress_cb_; // v3
 };
 
 // -----------------------------

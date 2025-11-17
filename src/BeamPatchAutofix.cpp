@@ -175,13 +175,13 @@ static PatchReport autopatch_read_detect_keep_state(FaultSimulator& sim,
         if (!apply_patch(trial, prop)) continue;
 
         auto t_sim = sim.simulate(trial, faults, tps);
-        // if (t_sim.state_coverage + 1e-12 < base_state) continue; // 不允許 state 下降
+        if (t_sim.state_coverage + 1e-12 < base_state) continue; // 不允許 state 下降
 
         auto t_ev  = evsim.simulate(trial, faults, tps);
         auto t_gdet = group_detected_from_events(t_ev);
         int gid = base_ev.tp_group.group_of_tp(prop.tp_gid);
         bool improved = (gid>=0) && !base_gdet[gid] && t_gdet[gid];
-        // if (!improved) continue;
+        if (!improved) continue;
 
         // 接受補丁，更新基線
         rep.patched = std::move(trial);
