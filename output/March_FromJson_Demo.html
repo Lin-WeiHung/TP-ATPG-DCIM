@@ -1,0 +1,119 @@
+<!doctype html><html><head><meta charset=utf-8><title>My March Tests</title><style>
+    :root { --bg:#111; --panel:#1e1e1e; --border:#333; --accent:#4ea3ff; --accent2:#ff9f43; --font:#eaeaea; --muted:#999; --state:#4caf50; --sens:#ff9800; --total:#2196f3; }
+    body { background:var(--bg); color:var(--font); font-family:Inter,Segoe UI,system-ui,sans-serif; margin:32px; line-height:1.4; }
+    h1 { font-size:28px; margin:0 0 12px; font-weight:600; }
+    .meta { display:flex; flex-wrap:wrap; gap:16px; margin-bottom:20px; }
+    .metric { background:var(--panel); padding:10px 14px; border:1px solid var(--border); border-radius:8px; min-width:160px; }
+    .metric .lbl { font-size:12px; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); }
+    .metric .val { font-size:18px; font-weight:600; }
+    .cards { display:grid; gap:28px; grid-template-columns:repeat(auto-fit,minmax(420px,1fr)); }
+    .card { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px 16px 16px; position:relative; box-shadow:0 2px 4px rgba(0,0,0,.35); }
+    .card-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; font-size:13px; }
+    .card-head .score { font-weight:600; color:var(--accent); }
+    .card-head .ops { color:var(--muted); }
+    .cov-row { display:flex; align-items:center; gap:10px; margin:4px 0; font-size:12px; }
+    .cov-row .lbl { width:70px; font-weight:500; }
+    .bar-wrap { flex:1; background:#222; border:1px solid #2d2d2d; border-radius:6px; height:10px; overflow:hidden; }
+    .bar { height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); }
+    .bar.state { background:var(--state); }
+    .bar.sens { background:var(--sens); }
+    .bar.total { background:var(--total); }
+    .score-break { margin:10px 0 8px; padding:8px 10px; background:#181818; border:1px solid #262626; border-radius:8px; font-size:11px; display:grid; gap:2px; }
+    .score-break .sum { margin-top:4px; font-weight:600; color:var(--accent); }
+    .seq { font-size:12px; color:var(--muted); margin:8px 0 10px; }
+    table.mt { width:100%; border-collapse:collapse; font-size:11px; }
+    table.mt td { padding:4px 6px; border-bottom:1px solid #222; }
+    td.idx { width:38px; color:var(--muted); }
+    td.ord { width:56px; font-weight:600; }
+    td.ops { font-family:monospace; font-size:11px; }
+    .footer { margin-top:40px; font-size:11px; color:var(--muted); text-align:center; }
+    pre.pattern { background:#0f0f0f; border:1px solid #262626; border-radius:8px; padding:10px; font-size:11px; overflow:auto; }
+    @media (max-width:700px){ .cards { grid-template-columns:1fr; } }
+    </style></head><body><h1>My March Tests</h1><div class=meta><div class=metric><div class=lbl>Source</div><div class=val>MarchTest.json</div></div><div class=metric><div class=lbl>Items</div><div class=val>14</div></div></div><h2>March Tests</h2><div class=cards><div class=card>
+  <div class="card-head"><span class=score>March: March COM</span></div>
+  <div class=seq>Pattern</div>  <pre class=pattern>b(W0, C(0)(0)(0));
+a(R0, W1, C(1)(1)(0));
+a(R1, W0, C(1)(1)(1), C(0)(0)(1));
+d(R0, W1, C(0)(1)(1));
+d(R1, W0, C(1)(0)(0));
+b(R0, W1, C(1)(1)(1), C(0)(0)(0));</pre>
+</div>
+<div class=card>
+  <div class="card-head"><span class=score>March: March LSD</span></div>
+  <div class=seq>Pattern</div>  <pre class=pattern>b(W0);
+a(R0, W1, R1, W1, W1, R1, W1, W0, R0, W1, W1, R1, W0, W1, R1, W1, R1, R1);
+a(R1, W1, W1, R1, W1, W0, R0, W1, W1, R1, W0, W1, R1, W1, R1, R1, R1, W0);
+a(R0);
+d(R0, W0, W0, R0, W0, W1, R1, W0, W0, R0, W1, W0, R0, W0, R0, R0, R0, W1);
+d(R1, W0, R0, W0, W0, R0, W0, W1, R1, W0, W0, R0, W1, W0, R0, W0, R0, R0);
+d(R0)</pre>
+</div>
+<div class=card>
+  <div class="card-head"><span class=score>March: March sep</span></div>
+  <div class=seq>Pattern</div>  <pre class=pattern>b(W0);
+b(C(0)(0)(0));</pre>
+</div>
+<div class=card>
+  <div class="card-head"><span class=score>March: March nonsep</span></div>
+  <div class=seq>Pattern</div>  <pre class=pattern>b(W0, C(0)(0)(0));</pre>
+</div>
+<div class=card>
+  <div class="card-head"><span class=score>March: March sep 2</span></div>
+  <div class=seq>Pattern</div>  <pre class=pattern>b(W0);
+b(C(0)(1)(0));</pre>
+</div>
+<div class=card>
+  <div class="card-head"><span class=score>March: March nonsep 2</span></div>
+  <div class=seq>Pattern</div>  <pre class=pattern>b(W0, C(0)(1)(0));</pre>
+</div>
+<div class=card>
+  <div class="card-head"><span class=score>March: March seqW0</span></div>
+  <div class=seq>Pattern</div>  <pre class=pattern>b(W1, W0, C(0)(0)(0), R0, W1, C(1)(1)(1), R1, W0);
+a(C(0)(1)(0), W1, C(0)(1)(0));
+d(C(0)(1)(0));
+a(C(1)(0)(0), R1, W0, W0, W0, W0);</pre>
+</div>
+<div class=card>
+  <div class="card-head"><span class=score>March: March seqW0 + W1</span></div>
+  <div class=seq>Pattern</div>  <pre class=pattern>b(W1, W0, C(0)(0)(0), R0, W1, C(1)(1)(1), R1, W0);
+a(C(0)(1)(0), W1, C(0)(1)(0));
+d(C(0)(1)(0));
+a(C(1)(0)(0), R1, W0, W0, W0, W0, W1);</pre>
+</div>
+<div class=card>
+  <div class="card-head"><span class=score>March: March 89</span></div>
+  <div class=seq>Pattern</div>  <pre class=pattern>b(W1, W0, C(0)(0)(0), R0, W1, C(1)(1)(1), R1, W0);
+a(C(0)(1)(0), W1, C(0)(1)(0));
+d(C(1)(1)(0));
+a(C(1)(0)(0), R1, W0, W1);
+d(W0);</pre>
+</div>
+<div class=card>
+  <div class="card-head"><span class=score>March: March LSF 1</span></div>
+  <div class=seq>Pattern</div>  <pre class=pattern>b(W0, W1, W1, R1);</pre>
+</div>
+<div class=card>
+  <div class="card-head"><span class=score>March: March LSF 2</span></div>
+  <div class=seq>Pattern</div>  <pre class=pattern>b(W0, W1);
+b(W1, R1);</pre>
+</div>
+<div class=card>
+  <div class="card-head"><span class=score>March: March LSF 3</span></div>
+  <div class=seq>Pattern</div>  <pre class=pattern>b(W0, W1, C(0)(0)(0));
+b(W1, R1);</pre>
+</div>
+<div class=card>
+  <div class="card-head"><span class=score>March: March LSF 4</span></div>
+  <div class=seq>Pattern</div>  <pre class=pattern>b(W0, W1, C(0)(0)(0));
+b(R1);</pre>
+</div>
+<div class=card>
+  <div class="card-head"><span class=score>March: March COM 2</span></div>
+  <div class=seq>Pattern</div>  <pre class=pattern>b(W0);
+a(R0, W1, C(1)(1)(1));
+a(R1, W0, C(0)(0)(0));
+d(R0, W1, C(0)(1)(1));
+d(R1, C(0)(0)(0), W0);
+b(R0, C(0)(1)(0));</pre>
+</div>
+</div><div class=footer>Generated by Template Search Engine</div></body></html>

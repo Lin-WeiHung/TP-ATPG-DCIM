@@ -15,6 +15,7 @@
 #include "FpParserAndTpGen.hpp"
 #include "FaultSimulator.hpp"
 #include "TemplateSearchers.hpp"
+#include "TemplateSearchReport.hpp" // new HTML report class
 
 using std::string; using std::vector; using std::ofstream; using std::ostringstream; using std::size_t;
 using css::template_search::TemplateLibrary; using css::template_search::TemplateEnumerator; using css::template_search::TemplateOpKind;
@@ -116,147 +117,6 @@ static void write_all_results_json(const vector<CandidateResult>& greedy_list,
 }
 
 // Escape minimal HTML
-static string esc(const string& s){
-    string out; out.reserve(s.size());
-    for(char c: s){
-        switch(c){
-            case '&': out += "&amp;"; break;
-            case '<': out += "&lt;"; break;
-            case '>': out += "&gt;"; break;
-            case '"': out += "&quot;"; break;
-            case '\'': out += "&#39;"; break;
-            default: out += c; break;
-        }
-    }
-    return out;
-}
-
-// Render a MarchTest to small HTML table
-static string render_march_test_html(const MarchTest& mt){
-    ostringstream ss;
-    ss << "<table class=mt>\n";
-    for(size_t i=0;i<mt.elements.size();++i){
-        const auto& e = mt.elements[i];
-        ss << "  <tr><td class=idx>"<<i<<"</td><td class=ord>"<< (e.order==AddrOrder::Up?"Up":(e.order==AddrOrder::Down?"Down":"Any")) <<"</td><td class=ops>";
-        for(size_t j=0;j<e.ops.size();++j){ if(j) ss<<" "; ss << esc(op_to_str(e.ops[j])); }
-        ss << "</td></tr>\n";
-    }
-    ss << "</table>\n";
-    return ss.str();
-}
-
-// Convert CandidateResult to an HTML card
-static string render_candidate_card(const CandidateResult& cr,
-                                    double w_state,
-                                    double w_total,
-                                    double op_penalty){
-    ostringstream ss;
-    std::size_t ops_count = 0; for(const auto& e: cr.march_test.elements) ops_count += e.ops.size();
-    double state_cov = cr.sim_result.state_coverage;
-    double sens_cov  = cr.sim_result.sens_coverage;
-    double total_cov = cr.sim_result.total_coverage;
-    auto pct = [](double v){ return (v*100.0); };
-    double s_state = w_state * state_cov;
-    double s_total = w_total * total_cov;
-    double s_pen   = op_penalty * static_cast<double>(ops_count);
-    double s_sum   = s_state + s_total - s_pen;
-
-    ss << "<div class=card>\n";
-    ss << "  <div class=\"card-head\">";
-    ss << "<span class=score>Score: "<< std::fixed << std::setprecision(3) << cr.score << "</span>";
-    ss << "<span class=ops>Total Ops: "<< ops_count << "</span>";
-    ss << "</div>\n";
-
-    // coverage bars
-    auto bar = [&](const char* label, const char* cls, double value){
-        ss << "  <div class=cov-row><span class=lbl>"<<label<<" "<< std::setprecision(2) << pct(value) <<"%</span><div class=bar-wrap><div class='bar "<<cls<<"' style='width:"<< std::min(100.0, pct(value)) <<"%'></div></div></div>\n";
-    };
-    bar("State", "state", state_cov);
-    bar("Sens",  "sens",  sens_cov);
-    bar("Total", "total", total_cov);
-
-    // scoring breakdown
-    ss << "  <div class=score-break>";
-    ss << "<div>state component: "<< std::setprecision(3) << s_state << " (w="<< w_state <<")</div>";
-    ss << "<div>total component: "<< std::setprecision(3) << s_total << " (w="<< w_total <<")</div>";
-    ss << "<div>op penalty: -"<< std::setprecision(3) << s_pen << " (w="<< op_penalty <<")</div>";
-    ss << "<div class=sum>final: "<< std::setprecision(3) << s_sum << "</div>";
-    ss << "  </div>\n";
-
-    // sequence ids
-    ss << "  <div class=seq>Template IDs: ";
-    for(size_t i=0;i<cr.sequence.size();++i){ if(i) ss<<", "; ss<<cr.sequence[i]; }
-    ss << "</div>\n";
-
-    // march table
-    ss << render_march_test_html(cr.march_test);
-    ss << "</div>\n";
-    return ss.str();
-}
-
-// Write full HTML report
-// New unified HTML report: combines greedy best and beam results (dedup + sorted)
-static void write_html_report_combined(const vector<CandidateResult>& combined_list,
-                                       const string& out_path,
-                                       double w_state,
-                                       double w_total,
-                                       double op_penalty,
-                                       std::size_t slot_count,
-                                       long long greedy_ms,
-                                       long long beam_ms){
-    ofstream ofs(out_path);
-    ofs << "<!doctype html><html><head><meta charset=utf-8>";
-    ofs << "<title>Template Search Report</title>";
-    ofs << R"(<style>
-    :root { --bg:#111; --panel:#1e1e1e; --border:#333; --accent:#4ea3ff; --accent2:#ff9f43; --font:#eaeaea; --muted:#999; --state:#4caf50; --sens:#ff9800; --total:#2196f3; }
-    body { background:var(--bg); color:var(--font); font-family:Inter,Segoe UI,system-ui,sans-serif; margin:32px; line-height:1.4; }
-    h1 { font-size:28px; margin:0 0 12px; font-weight:600; }
-    .meta { display:flex; flex-wrap:wrap; gap:16px; margin-bottom:20px; }
-    .metric { background:var(--panel); padding:10px 14px; border:1px solid var(--border); border-radius:8px; min-width:160px; }
-    .metric .lbl { font-size:12px; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); }
-    .metric .val { font-size:18px; font-weight:600; }
-    .cards { display:grid; gap:28px; grid-template-columns:repeat(auto-fit,minmax(420px,1fr)); }
-    .card { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px 16px 16px; position:relative; box-shadow:0 2px 4px rgba(0,0,0,.35); }
-    .card-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; font-size:13px; }
-    .card-head .score { font-weight:600; color:var(--accent); }
-    .card-head .ops { color:var(--muted); }
-    .cov-row { display:flex; align-items:center; gap:10px; margin:4px 0; font-size:12px; }
-    .cov-row .lbl { width:70px; font-weight:500; }
-    .bar-wrap { flex:1; background:#222; border:1px solid #2d2d2d; border-radius:6px; height:10px; overflow:hidden; }
-    .bar { height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); }
-    .bar.state { background:var(--state); }
-    .bar.sens { background:var(--sens); }
-    .bar.total { background:var(--total); }
-    .score-break { margin:10px 0 8px; padding:8px 10px; background:#181818; border:1px solid #262626; border-radius:8px; font-size:11px; display:grid; gap:2px; }
-    .score-break .sum { margin-top:4px; font-weight:600; color:var(--accent); }
-    .seq { font-size:12px; color:var(--muted); margin:8px 0 10px; }
-    table.mt { width:100%; border-collapse:collapse; font-size:11px; }
-    table.mt td { padding:4px 6px; border-bottom:1px solid #222; }
-    td.idx { width:38px; color:var(--muted); }
-    td.ord { width:56px; font-weight:600; }
-    td.ops { font-family:monospace; font-size:11px; }
-    .footer { margin-top:40px; font-size:11px; color:var(--muted); text-align:center; }
-    @media (max-width:700px){ .cards { grid-template-columns:1fr; } }
-    </style>)";
-    ofs << "</head><body>";
-    ofs << "<h1>Template Search Report</h1>";
-
-    ofs << "<div class=meta>";
-    ofs << "<div class=metric><div class=lbl>Slots</div><div class=val>"<< slot_count <<"</div></div>";
-    ofs << "<div class=metric><div class=lbl>Greedy Time</div><div class=val>"<< greedy_ms <<" ms</div></div>";
-    ofs << "<div class=metric><div class=lbl>Beam Time</div><div class=val>"<< beam_ms <<" ms</div></div>";
-    ofs << "<div class=metric><div class=lbl>Scoring Formula</div><div class=val>w_state="<< w_state <<" / w_total="<< w_total <<" / pen="<< op_penalty <<"</div></div>";
-    double best_total = 0.0; for(const auto& c: combined_list) best_total = std::max(best_total, c.sim_result.total_coverage*100.0);
-    ofs << "<div class=metric><div class=lbl>Best Total%</div><div class=val>"<< std::fixed << std::setprecision(2) << best_total <<"%</div></div>";
-    ofs << "<div class=metric><div class=lbl>Combined Count</div><div class=val>"<< combined_list.size() <<"</div></div>";
-    ofs << "</div>";
-
-    ofs << "<h2>Combined Results (Greedy + Beam)</h2><div class=cards>";
-    for(const auto& cr: combined_list){ ofs << render_candidate_card(cr, w_state, w_total, op_penalty); }
-    ofs << "</div>";
-    ofs << "<div class=footer>Generated by Template Search Engine &middot; Greedy best merged with beam results.</div>";
-    ofs << "</body></html>";
-}
 
 // Run greedy and return up to top_k prefix results (one per level)
 // Helper: unify greedy best (single) with beam list, remove duplicate sequences, sort by score desc
@@ -335,7 +195,7 @@ int run_template_search_html(const string& faults_json_path,
     std::cout << "[Beam] Elapsed: "<< beam_ms << " ms" << std::endl;
 
     auto combined = unify_results(greedy_best, beam_list);
-    write_html_report_combined(combined, output_html_path, w_state, w_total, op_penalty, slot_count, greedy_ms, beam_ms);
+    TemplateSearchReport{}.gen_html(combined, output_html_path, w_state, w_total, op_penalty, slot_count, greedy_ms, beam_ms);
     // For JSON export keep legacy merger (vector with single greedy element)
     vector<CandidateResult> greedy_vec; greedy_vec.push_back(greedy_best);
     write_all_results_json(greedy_vec, beam_list, json_out_path.empty()?output_html_path:json_out_path);
@@ -665,7 +525,7 @@ int main(int argc, char** argv){
     std::cout << "[SBeam] Elapsed: "<< beam_ms << " ms" << std::endl;
 
     auto combined = unify_results(greedy_best, beam_list);
-    write_html_report_combined(combined, out, w_state, w_total, op_penalty, slot_count, greedy_ms, beam_ms);
+    TemplateSearchReport{}.gen_html(combined, out, w_state, w_total, op_penalty, slot_count, greedy_ms, beam_ms);
     vector<CandidateResult> greedy_vec; greedy_vec.push_back(greedy_best);
     write_all_results_json(greedy_vec, beam_list, json_path_override.empty()?out:json_path_override);
     return 0;

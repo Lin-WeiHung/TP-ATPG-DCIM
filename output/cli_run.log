@@ -1,0 +1,4 @@
+[Greedy] Elapsed: 0 ms
+[Beam] Start: L=6, beam_width=8, lib=0
+[Beam] Elapsed: 0 ms
+[Export] All results JSON written: output/TemplateSearchReport_cli_all.json (2 items)
