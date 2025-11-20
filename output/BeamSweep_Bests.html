@@ -1,0 +1,432 @@
+<!doctype html><html><head><meta charset=utf-8><title>March Test Report</title><style>
+    :root { --bg:#111; --panel:#1e1e1e; --border:#333; --accent:#4ea3ff; --accent2:#ff9f43; --font:#eaeaea; --muted:#999; --state:#4caf50; --sens:#ff9800; --total:#2196f3; }
+    body { background:var(--bg); color:var(--font); font-family:Inter,Segoe UI,system-ui,sans-serif; margin:32px; line-height:1.4; }
+    h1 { font-size:28px; margin:0 0 12px; font-weight:600; }
+    .meta { display:flex; flex-wrap:wrap; gap:16px; margin-bottom:20px; }
+    .metric { background:var(--panel); padding:10px 14px; border:1px solid var(--border); border-radius:8px; min-width:160px; }
+    .metric .lbl { font-size:12px; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); }
+    .metric .val { font-size:18px; font-weight:600; }
+    .cards { display:grid; gap:28px; grid-template-columns:repeat(auto-fit,minmax(420px,1fr)); }
+    .card { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px 16px 16px; position:relative; box-shadow:0 2px 4px rgba(0,0,0,.35); }
+    .card-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; font-size:13px; }
+    .card-head .score { font-weight:600; color:var(--accent); }
+    .card-head .ops { color:var(--muted); }
+    .cov-row { display:flex; align-items:center; gap:10px; margin:4px 0; font-size:12px; }
+    .cov-row .lbl { width:70px; font-weight:500; }
+    .bar-wrap { flex:1; background:#222; border:1px solid #2d2d2d; border-radius:6px; height:10px; overflow:hidden; }
+    .bar { height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); }
+    .bar.state { background:var(--state); }
+    .bar.sens { background:var(--sens); }
+    .bar.total { background:var(--total); }
+    .score-break { margin:10px 0 8px; padding:8px 10px; background:#181818; border:1px solid #262626; border-radius:8px; font-size:11px; display:grid; gap:2px; }
+    .score-break .sum { margin-top:4px; font-weight:600; color:var(--accent); }
+    .seq { font-size:12px; color:var(--muted); margin:8px 0 10px; }
+    table.mt { width:100%; border-collapse:collapse; font-size:11px; }
+    table.mt td { padding:4px 6px; border-bottom:1px solid #222; }
+    td.idx { width:38px; color:var(--muted); }
+    td.ord { width:56px; font-weight:600; }
+    td.ops { font-family:monospace; font-size:11px; }
+    .footer { margin-top:40px; font-size:11px; color:var(--muted); text-align:center; }
+    pre.pattern { background:#0f0f0f; border:1px solid #262626; border-radius:8px; padding:10px; font-size:11px; overflow:auto; }
+    @media (max-width:700px){ .cards { grid-template-columns:1fr; } }
+    </style></head><body><h1>March Test Report</h1><div class=meta><div class=metric><div class=lbl>Source</div><div class=val>BeamSweep_Bests.json</div></div><div class=metric><div class=lbl>Items</div><div class=val>32</div></div><div class=metric><div class=lbl>Best Total%</div><div class=val>100%</div></div></div><h2>March Tests</h2><div class=cards><div class=card>
+  <div class="card-head"><span class=score>Best_ops4_elems8</span><span class=ops>Total Ops: 21</span></div>
+  <div class=cov-row><span class=lbl>State 100%</span><div class=bar-wrap><div class='bar state' style='width:100%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 100%</span><div class=bar-wrap><div class='bar sens' style='width:100%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 100%</span><div class=bar-wrap><div class='bar total' style='width:100%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>C(1,1,1) R0 W1 C(0,1,0)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>C(0,1,0) C(0,0,0) R1 W0</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Down</td><td class=ops>C(0,0,0) C(0,1,1) W1 C(1,1,1)</td></tr>
+  <tr><td class=idx>4</td><td class=ord>Down</td><td class=ops>C(0,1,0) W0 C(0,1,0)</td></tr>
+  <tr><td class=idx>5</td><td class=ord>Up</td><td class=ops>C(0,0,0) R0</td></tr>
+  <tr><td class=idx>6</td><td class=ord>Up</td><td class=ops>W1</td></tr>
+  <tr><td class=idx>7</td><td class=ord>Down</td><td class=ops>R1 W0</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class="card-head"><span class=score>Best_ops3_elems8</span><span class=ops>Total Ops: 20</span></div>
+  <div class=cov-row><span class=lbl>State 100%</span><div class=bar-wrap><div class='bar state' style='width:100%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 100%</span><div class=bar-wrap><div class='bar sens' style='width:100%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 100%</span><div class=bar-wrap><div class='bar total' style='width:100%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W1</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>C(1,1,1) W0 C(1,1,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>R0 W1 C(0,1,0)</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Up</td><td class=ops>C(1,0,0) C(1,1,0) R1</td></tr>
+  <tr><td class=idx>4</td><td class=ord>Down</td><td class=ops>C(0,1,0) W0 C(0,0,0)</td></tr>
+  <tr><td class=idx>5</td><td class=ord>Down</td><td class=ops>R0 W1 C(0,1,0)</td></tr>
+  <tr><td class=idx>6</td><td class=ord>Down</td><td class=ops>C(0,1,1) R1 W0</td></tr>
+  <tr><td class=idx>7</td><td class=ord>Up</td><td class=ops>R0</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class="card-head"><span class=score>Best_ops3_elems7</span><span class=ops>Total Ops: 19</span></div>
+  <div class=cov-row><span class=lbl>State 100%</span><div class=bar-wrap><div class='bar state' style='width:100%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 100%</span><div class=bar-wrap><div class='bar sens' style='width:100%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 100%</span><div class=bar-wrap><div class='bar total' style='width:100%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W1</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>C(1,1,1) W0 C(1,1,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>R0 W1 C(0,1,0)</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Up</td><td class=ops>C(1,0,0) C(1,1,0) R1</td></tr>
+  <tr><td class=idx>4</td><td class=ord>Down</td><td class=ops>C(0,1,0) W0 C(0,0,0)</td></tr>
+  <tr><td class=idx>5</td><td class=ord>Down</td><td class=ops>R0 W1 C(0,1,0)</td></tr>
+  <tr><td class=idx>6</td><td class=ord>Down</td><td class=ops>C(0,1,1) R1 W0</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class="card-head"><span class=score>Best_ops4_elems6</span><span class=ops>Total Ops: 18</span></div>
+  <div class=cov-row><span class=lbl>State 98.53%</span><div class=bar-wrap><div class='bar state' style='width:98.5294%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 98.53%</span><div class=bar-wrap><div class='bar sens' style='width:98.5294%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 98.53%</span><div class=bar-wrap><div class='bar total' style='width:98.5294%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>C(1,1,1) R0 W1 C(0,1,0)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>C(0,1,0) C(0,0,0) R1 W0</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Down</td><td class=ops>C(0,0,0) C(0,1,1) W1 C(1,1,1)</td></tr>
+  <tr><td class=idx>4</td><td class=ord>Down</td><td class=ops>C(0,1,0) W0 C(0,1,0)</td></tr>
+  <tr><td class=idx>5</td><td class=ord>Up</td><td class=ops>C(0,0,0) R0</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class="card-head"><span class=score>Best_ops4_elems7</span><span class=ops>Total Ops: 19</span></div>
+  <div class=cov-row><span class=lbl>State 98.53%</span><div class=bar-wrap><div class='bar state' style='width:98.5294%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 98.53%</span><div class=bar-wrap><div class='bar sens' style='width:98.5294%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 98.53%</span><div class=bar-wrap><div class='bar total' style='width:98.5294%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>C(1,1,1) R0 W1 C(0,1,0)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>C(0,1,0) C(0,0,0) R1 W0</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Down</td><td class=ops>C(0,0,0) C(0,1,1) W1 C(1,1,1)</td></tr>
+  <tr><td class=idx>4</td><td class=ord>Down</td><td class=ops>C(0,1,0) W0 C(0,1,0)</td></tr>
+  <tr><td class=idx>5</td><td class=ord>Up</td><td class=ops>C(0,0,0) R0</td></tr>
+  <tr><td class=idx>6</td><td class=ord>Up</td><td class=ops>R0</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class="card-head"><span class=score>Best_ops4_elems5</span><span class=ops>Total Ops: 16</span></div>
+  <div class=cov-row><span class=lbl>State 98.53%</span><div class=bar-wrap><div class='bar state' style='width:98.5294%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 98.53%</span><div class=bar-wrap><div class='bar sens' style='width:98.5294%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 97.06%</span><div class=bar-wrap><div class='bar total' style='width:97.0588%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>C(1,1,1) R0 W1 C(0,1,0)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>C(0,1,0) C(0,0,0) R1 W0</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Down</td><td class=ops>C(0,0,0) C(0,1,1) W1 C(1,1,1)</td></tr>
+  <tr><td class=idx>4</td><td class=ord>Down</td><td class=ops>C(0,1,0) W0 C(0,1,0)</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class="card-head"><span class=score>Best_ops3_elems6</span><span class=ops>Total Ops: 16</span></div>
+  <div class=cov-row><span class=lbl>State 98.53%</span><div class=bar-wrap><div class='bar state' style='width:98.5294%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 98.53%</span><div class=bar-wrap><div class='bar sens' style='width:98.5294%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 95.59%</span><div class=bar-wrap><div class='bar total' style='width:95.5882%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W1</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>C(1,1,1) W0 C(1,1,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>R0 W1 C(0,1,0)</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Up</td><td class=ops>C(1,0,0) C(1,1,0) R1</td></tr>
+  <tr><td class=idx>4</td><td class=ord>Down</td><td class=ops>C(0,1,0) W0 C(0,0,0)</td></tr>
+  <tr><td class=idx>5</td><td class=ord>Down</td><td class=ops>C(0,1,0) R0 W1</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class="card-head"><span class=score>Best_ops2_elems8</span><span class=ops>Total Ops: 15</span></div>
+  <div class=cov-row><span class=lbl>State 97.06%</span><div class=bar-wrap><div class='bar state' style='width:97.0588%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 97.06%</span><div class=bar-wrap><div class='bar sens' style='width:97.0588%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 94.12%</span><div class=bar-wrap><div class='bar total' style='width:94.1176%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Down</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>W1 C(1,1,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>C(1,0,0) R1</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Up</td><td class=ops>W0 C(1,1,1)</td></tr>
+  <tr><td class=idx>4</td><td class=ord>Up</td><td class=ops>C(0,0,0) R0</td></tr>
+  <tr><td class=idx>5</td><td class=ord>Down</td><td class=ops>W1 C(0,1,1)</td></tr>
+  <tr><td class=idx>6</td><td class=ord>Down</td><td class=ops>C(0,1,0) W0</td></tr>
+  <tr><td class=idx>7</td><td class=ord>Up</td><td class=ops>R0 W1</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class="card-head"><span class=score>Best_ops2_elems7</span><span class=ops>Total Ops: 13</span></div>
+  <div class=cov-row><span class=lbl>State 97.06%</span><div class=bar-wrap><div class='bar state' style='width:97.0588%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 97.06%</span><div class=bar-wrap><div class='bar sens' style='width:97.0588%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 92.65%</span><div class=bar-wrap><div class='bar total' style='width:92.6471%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Down</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>W1 C(1,1,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>C(1,0,0) R1</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Up</td><td class=ops>W0 C(1,1,1)</td></tr>
+  <tr><td class=idx>4</td><td class=ord>Up</td><td class=ops>C(0,0,0) R0</td></tr>
+  <tr><td class=idx>5</td><td class=ord>Down</td><td class=ops>W1 C(0,1,1)</td></tr>
+  <tr><td class=idx>6</td><td class=ord>Down</td><td class=ops>C(0,1,0) W0</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class="card-head"><span class=score>Best_ops3_elems5</span><span class=ops>Total Ops: 13</span></div>
+  <div class=cov-row><span class=lbl>State 97.06%</span><div class=bar-wrap><div class='bar state' style='width:97.0588%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 94.12%</span><div class=bar-wrap><div class='bar sens' style='width:94.1176%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 89.71%</span><div class=bar-wrap><div class='bar total' style='width:89.7059%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W1</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>C(1,1,1) W0 C(1,1,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>R0 W1 C(0,1,0)</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Up</td><td class=ops>C(1,0,0) C(1,1,0) R1</td></tr>
+  <tr><td class=idx>4</td><td class=ord>Down</td><td class=ops>C(0,1,0) W0 C(0,0,0)</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class="card-head"><span class=score>Best_ops4_elems4</span><span class=ops>Total Ops: 13</span></div>
+  <div class=cov-row><span class=lbl>State 98.53%</span><div class=bar-wrap><div class='bar state' style='width:98.5294%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 92.65%</span><div class=bar-wrap><div class='bar sens' style='width:92.6471%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 88.24%</span><div class=bar-wrap><div class='bar total' style='width:88.2353%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>C(1,1,1) R0 W1 C(0,1,0)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>C(0,1,0) C(0,0,0) R1 W0</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Down</td><td class=ops>C(0,0,0) C(0,1,1) W1 C(1,1,1)</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class="card-head"><span class=score>Best_ops2_elems6</span><span class=ops>Total Ops: 11</span></div>
+  <div class=cov-row><span class=lbl>State 97.06%</span><div class=bar-wrap><div class='bar state' style='width:97.0588%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 94.12%</span><div class=bar-wrap><div class='bar sens' style='width:94.1176%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 83.82%</span><div class=bar-wrap><div class='bar total' style='width:83.8235%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Down</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>W1 C(1,1,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>C(1,0,0) R1</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Up</td><td class=ops>W0 C(1,1,1)</td></tr>
+  <tr><td class=idx>4</td><td class=ord>Up</td><td class=ops>C(0,0,0) R0</td></tr>
+  <tr><td class=idx>5</td><td class=ord>Down</td><td class=ops>W1 C(0,1,1)</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class="card-head"><span class=score>Best_ops3_elems4</span><span class=ops>Total Ops: 10</span></div>
+  <div class=cov-row><span class=lbl>State 95.59%</span><div class=bar-wrap><div class='bar state' style='width:95.5882%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 89.71%</span><div class=bar-wrap><div class='bar sens' style='width:89.7059%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 80.88%</span><div class=bar-wrap><div class='bar total' style='width:80.8824%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W1</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>C(1,1,1) W0 C(1,1,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>R0 W1 C(0,1,0)</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Up</td><td class=ops>C(1,0,0) C(1,1,0) R1</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class="card-head"><span class=score>Best_ops2_elems5</span><span class=ops>Total Ops: 9</span></div>
+  <div class=cov-row><span class=lbl>State 97.06%</span><div class=bar-wrap><div class='bar state' style='width:97.0588%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 91.18%</span><div class=bar-wrap><div class='bar sens' style='width:91.1765%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 77.94%</span><div class=bar-wrap><div class='bar total' style='width:77.9412%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Down</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>W1 C(1,1,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>C(1,0,0) R1</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Up</td><td class=ops>W0 C(1,1,1)</td></tr>
+  <tr><td class=idx>4</td><td class=ord>Up</td><td class=ops>C(0,0,0) R0</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class="card-head"><span class=score>Best_ops4_elems3</span><span class=ops>Total Ops: 9</span></div>
+  <div class=cov-row><span class=lbl>State 94.12%</span><div class=bar-wrap><div class='bar state' style='width:94.1176%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 88.24%</span><div class=bar-wrap><div class='bar sens' style='width:88.2353%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 73.53%</span><div class=bar-wrap><div class='bar total' style='width:73.5294%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>C(1,1,1) R0 W1 C(0,1,0)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>C(0,1,0) C(0,0,0) R1 W0</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class="card-head"><span class=score>Best_ops3_elems3</span><span class=ops>Total Ops: 7</span></div>
+  <div class=cov-row><span class=lbl>State 95.59%</span><div class=bar-wrap><div class='bar state' style='width:95.5882%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 89.71%</span><div class=bar-wrap><div class='bar sens' style='width:89.7059%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 64.71%</span><div class=bar-wrap><div class='bar total' style='width:64.7059%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W1</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>C(1,1,1) W0 C(1,1,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>R0 W1 C(0,1,0)</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class="card-head"><span class=score>Best_ops2_elems4</span><span class=ops>Total Ops: 7</span></div>
+  <div class=cov-row><span class=lbl>State 91.18%</span><div class=bar-wrap><div class='bar state' style='width:91.1765%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 85.29%</span><div class=bar-wrap><div class='bar sens' style='width:85.2941%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 58.82%</span><div class=bar-wrap><div class='bar total' style='width:58.8235%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Down</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>W1 C(1,1,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>C(1,0,0) R1</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Up</td><td class=ops>W0 C(1,1,1)</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class="card-head"><span class=score>Best_ops1_elems8</span><span class=ops>Total Ops: 8</span></div>
+  <div class=cov-row><span class=lbl>State 86.76%</span><div class=bar-wrap><div class='bar state' style='width:86.7647%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 79.41%</span><div class=bar-wrap><div class='bar sens' style='width:79.4118%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 57.35%</span><div class=bar-wrap><div class='bar total' style='width:57.3529%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W1</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Down</td><td class=ops>C(0,1,0)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>R1</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Up</td><td class=ops>C(1,0,1)</td></tr>
+  <tr><td class=idx>4</td><td class=ord>Up</td><td class=ops>C(1,1,1)</td></tr>
+  <tr><td class=idx>5</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>6</td><td class=ord>Up</td><td class=ops>C(0,1,0)</td></tr>
+  <tr><td class=idx>7</td><td class=ord>Up</td><td class=ops>R0</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class="card-head"><span class=score>Best_ops4_elems2</span><span class=ops>Total Ops: 5</span></div>
+  <div class=cov-row><span class=lbl>State 79.41%</span><div class=bar-wrap><div class='bar state' style='width:79.4118%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 70.59%</span><div class=bar-wrap><div class='bar sens' style='width:70.5882%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 48.53%</span><div class=bar-wrap><div class='bar total' style='width:48.5294%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>C(1,1,1) R0 W1 C(0,1,0)</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class="card-head"><span class=score>Best_ops1_elems7</span><span class=ops>Total Ops: 7</span></div>
+  <div class=cov-row><span class=lbl>State 82.35%</span><div class=bar-wrap><div class='bar state' style='width:82.3529%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 75%</span><div class=bar-wrap><div class='bar sens' style='width:75%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 47.06%</span><div class=bar-wrap><div class='bar total' style='width:47.0588%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W1</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Down</td><td class=ops>C(0,1,0)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>R1</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Up</td><td class=ops>C(1,0,1)</td></tr>
+  <tr><td class=idx>4</td><td class=ord>Up</td><td class=ops>C(1,1,1)</td></tr>
+  <tr><td class=idx>5</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>6</td><td class=ord>Up</td><td class=ops>C(1,1,0)</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class="card-head"><span class=score>Best_ops2_elems3</span><span class=ops>Total Ops: 5</span></div>
+  <div class=cov-row><span class=lbl>State 82.35%</span><div class=bar-wrap><div class='bar state' style='width:82.3529%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 72.06%</span><div class=bar-wrap><div class='bar sens' style='width:72.0588%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 44.12%</span><div class=bar-wrap><div class='bar total' style='width:44.1176%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Down</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>W1 C(1,1,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>C(1,0,0) R1</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class="card-head"><span class=score>Best_ops3_elems2</span><span class=ops>Total Ops: 4</span></div>
+  <div class=cov-row><span class=lbl>State 75%</span><div class=bar-wrap><div class='bar state' style='width:75%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 69.12%</span><div class=bar-wrap><div class='bar sens' style='width:69.1176%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 42.65%</span><div class=bar-wrap><div class='bar total' style='width:42.6471%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W1</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>C(1,1,1) W0 C(1,1,1)</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class="card-head"><span class=score>Best_ops1_elems6</span><span class=ops>Total Ops: 6</span></div>
+  <div class=cov-row><span class=lbl>State 50%</span><div class=bar-wrap><div class='bar state' style='width:50%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 35.29%</span><div class=bar-wrap><div class='bar sens' style='width:35.2941%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 35.29%</span><div class=bar-wrap><div class='bar total' style='width:35.2941%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W1</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Down</td><td class=ops>C(0,1,0)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>R1</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Up</td><td class=ops>C(1,0,1)</td></tr>
+  <tr><td class=idx>4</td><td class=ord>Up</td><td class=ops>C(1,1,1)</td></tr>
+  <tr><td class=idx>5</td><td class=ord>Up</td><td class=ops>R1</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class="card-head"><span class=score>Best_ops1_elems5</span><span class=ops>Total Ops: 5</span></div>
+  <div class=cov-row><span class=lbl>State 50%</span><div class=bar-wrap><div class='bar state' style='width:50%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 35.29%</span><div class=bar-wrap><div class='bar sens' style='width:35.2941%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 35.29%</span><div class=bar-wrap><div class='bar total' style='width:35.2941%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W1</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Down</td><td class=ops>C(0,1,0)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>R1</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Up</td><td class=ops>C(1,0,1)</td></tr>
+  <tr><td class=idx>4</td><td class=ord>Up</td><td class=ops>C(1,1,1)</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class="card-head"><span class=score>Best_ops1_elems4</span><span class=ops>Total Ops: 4</span></div>
+  <div class=cov-row><span class=lbl>State 50%</span><div class=bar-wrap><div class='bar state' style='width:50%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 35.29%</span><div class=bar-wrap><div class='bar sens' style='width:35.2941%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 32.35%</span><div class=bar-wrap><div class='bar total' style='width:32.3529%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W1</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Down</td><td class=ops>C(0,1,0)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>R1</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Up</td><td class=ops>C(1,0,1)</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class="card-head"><span class=score>Best_ops2_elems2</span><span class=ops>Total Ops: 3</span></div>
+  <div class=cov-row><span class=lbl>State 75%</span><div class=bar-wrap><div class='bar state' style='width:75%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 66.18%</span><div class=bar-wrap><div class='bar sens' style='width:66.1765%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 27.94%</span><div class=bar-wrap><div class='bar total' style='width:27.9412%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Down</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>W1 C(1,1,1)</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class="card-head"><span class=score>Best_ops1_elems3</span><span class=ops>Total Ops: 3</span></div>
+  <div class=cov-row><span class=lbl>State 50%</span><div class=bar-wrap><div class='bar state' style='width:50%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 35.29%</span><div class=bar-wrap><div class='bar sens' style='width:35.2941%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 26.47%</span><div class=bar-wrap><div class='bar total' style='width:26.4706%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W1</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Down</td><td class=ops>C(0,1,0)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>R1</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class="card-head"><span class=score>Best_ops1_elems2</span><span class=ops>Total Ops: 2</span></div>
+  <div class=cov-row><span class=lbl>State 36.76%</span><div class=bar-wrap><div class='bar state' style='width:36.7647%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 29.41%</span><div class=bar-wrap><div class='bar sens' style='width:29.4118%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 17.65%</span><div class=bar-wrap><div class='bar total' style='width:17.6471%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W1</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>C(0,1,0)</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class="card-head"><span class=score>Best_ops4_elems1</span><span class=ops>Total Ops: 1</span></div>
+  <div class=cov-row><span class=lbl>State 2.94%</span><div class=bar-wrap><div class='bar state' style='width:2.94118%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 2.94%</span><div class=bar-wrap><div class='bar sens' style='width:2.94118%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 0%</span><div class=bar-wrap><div class='bar total' style='width:0%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class="card-head"><span class=score>Best_ops3_elems1</span><span class=ops>Total Ops: 1</span></div>
+  <div class=cov-row><span class=lbl>State 2.94%</span><div class=bar-wrap><div class='bar state' style='width:2.94118%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 2.94%</span><div class=bar-wrap><div class='bar sens' style='width:2.94118%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 0%</span><div class=bar-wrap><div class='bar total' style='width:0%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class="card-head"><span class=score>Best_ops2_elems1</span><span class=ops>Total Ops: 1</span></div>
+  <div class=cov-row><span class=lbl>State 2.94%</span><div class=bar-wrap><div class='bar state' style='width:2.94118%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 2.94%</span><div class=bar-wrap><div class='bar sens' style='width:2.94118%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 0%</span><div class=bar-wrap><div class='bar total' style='width:0%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+</table>
+</div>
+<div class=card>
+  <div class="card-head"><span class=score>Best_ops1_elems1</span><span class=ops>Total Ops: 1</span></div>
+  <div class=cov-row><span class=lbl>State 2.94%</span><div class=bar-wrap><div class='bar state' style='width:2.94118%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 2.94%</span><div class=bar-wrap><div class='bar sens' style='width:2.94118%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 0%</span><div class=bar-wrap><div class='bar total' style='width:0%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+</table>
+</div>
+</div><div class=footer>Generated by Template Search Engine</div></body></html>
