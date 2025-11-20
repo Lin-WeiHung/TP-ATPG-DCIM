@@ -10,6 +10,7 @@
 #include <iomanip>
 #include <chrono>
 #include <queue>
+#include <limits>
 #include <memory> // v2: for std::make_shared constraints
 
 #include "FpParserAndTpGen.hpp"
@@ -241,176 +242,7 @@ int main(int argc, char** argv){
 }
 #endif
 
-// =============================
-// Streaming Beam (Top-N only)
-//   - Keeps only top beam_width nodes per level using a min-heap
-//   - Streams element variants without materializing all candidates
-//   - add-on utility in this .cpp (doesn't touch header types)
-// =============================
-
-namespace {
-
-struct SB_BeamNode {
-    std::vector<TemplateLibrary::TemplateId> seq;
-    MarchTest mt;
-    SimulationResult sim;
-    double score{0.0};
-    css::template_search::PrefixState prefix_state;
-};
-
-// Enumerate element variants of a given ElementTemplate, streaming via callback.
-// expand_cap limits maximum variants visited to prevent blow-ups.
-static void sb_enumerate_elem_variants(const css::template_search::ElementTemplate& et,
-                                       std::size_t expand_cap,
-                                       const std::function<void(const MarchElement&)>& yield)
-{
-    struct SlotChoices { TemplateOpKind kind; std::vector<Op> options; };
-    std::vector<SlotChoices> slots;
-    slots.reserve(et.slot_count());
-
-    auto add_compute = [](std::vector<Op>& v){
-        v.reserve(8);
-        for(int mask=0; mask<8; ++mask){
-            Op op{}; op.kind = OpKind::ComputeAnd;
-            op.C_T = (mask & 0b001) ? Val::One : Val::Zero;
-            op.C_M = (mask & 0b010) ? Val::One : Val::Zero;
-            op.C_B = (mask & 0b100) ? Val::One : Val::Zero;
-            v.push_back(op);
-        }
-    };
-
-    for (const auto& s : et.get_slots()) {
-        SlotChoices sc; sc.kind = s.kind;
-        switch (s.kind) {
-            case TemplateOpKind::None:
-                // use empty options vector to represent skip
-                break;
-            case TemplateOpKind::Read: {
-                Op r0{}; r0.kind = OpKind::Read; r0.value = Val::Zero;
-                Op r1{}; r1.kind = OpKind::Read; r1.value = Val::One;
-                sc.options.push_back(r0); sc.options.push_back(r1);
-            } break;
-            case TemplateOpKind::Write: {
-                Op w0{}; w0.kind = OpKind::Write; w0.value = Val::Zero;
-                Op w1{}; w1.kind = OpKind::Write; w1.value = Val::One;
-                sc.options.push_back(w0); sc.options.push_back(w1);
-            } break;
-            case TemplateOpKind::Compute: {
-                add_compute(sc.options);
-            } break;
-        }
-        slots.push_back(std::move(sc));
-    }
-
-    std::vector<int> choice(slots.size(), 0);
-    std::size_t visited = 0;
-
-    std::function<void(std::size_t)> dfs = [&](std::size_t idx){
-        if (visited >= expand_cap) return;
-        if (idx == slots.size()) {
-            MarchElement me; me.order = et.get_order();
-            me.ops.reserve(slots.size());
-            for (std::size_t i=0; i<slots.size(); ++i) {
-                if (slots[i].kind == TemplateOpKind::None) continue;
-                me.ops.push_back(slots[i].options[choice[i]]);
-            }
-            ++visited; yield(me);
-            return;
-        }
-        if (slots[idx].kind == TemplateOpKind::None) { dfs(idx+1); return; }
-        for (int i=0; i<(int)slots[idx].options.size(); ++i) {
-            if (visited >= expand_cap) break;
-            choice[idx] = i;
-            dfs(idx+1);
-        }
-    };
-
-    if (slots.empty()) {
-        MarchElement me; me.order = et.get_order(); yield(me); return;
-    }
-    dfs(0);
-}
-
-// Streaming beam search using on-the-fly top-N heap and variant streaming
-static std::vector<CandidateResult> run_beam_topk_streaming(FaultSimulator& sim,
-                                                            const TemplateLibrary& lib,
-                                                            const std::vector<Fault>& faults,
-                                                            const std::vector<TestPrimitive>& tps,
-                                                            std::size_t L,
-                                                            std::size_t beam_width,
-                                                            std::size_t top_k,
-                                                            css::template_search::ScoreFunc scorer,
-                                                            const SequenceConstraintSet& seq_constraints,
-                                                            std::size_t expand_cap)
-{
-    auto better = [](const SB_BeamNode& a, const SB_BeamNode& b){ return a.score > b.score; };
-
-    std::vector<SB_BeamNode> beam;
-    {
-        SB_BeamNode root; root.mt.name = "stream_beam_root"; root.score = 0.0; beam.push_back(std::move(root));
-    }
-
-    for (std::size_t pos=0; pos<L; ++pos) {
-        // min-heap to keep best beam_width
-        auto cmp_min = [](const SB_BeamNode& a, const SB_BeamNode& b){ return a.score > b.score; };
-        std::priority_queue<SB_BeamNode, std::vector<SB_BeamNode>, decltype(cmp_min)> topk_heap(cmp_min);
-
-        std::size_t total_candidates = 0;
-
-        for (const auto& node : beam) {
-            for (std::size_t tid=0; tid<lib.size(); ++tid) {
-                const auto& et = lib.at(tid);
-                sb_enumerate_elem_variants(et, expand_cap, [&](const MarchElement& elem_variant){
-                    if (elem_variant.ops.empty()) return; // skip empty
-                    if (!seq_constraints.allow(node.prefix_state, elem_variant, pos)) return;
-
-                    SB_BeamNode nb;
-                    nb.seq = node.seq; nb.seq.push_back(tid);
-                    nb.mt = node.mt; nb.mt.elements.push_back(elem_variant);
-                    nb.prefix_state = node.prefix_state;
-                    seq_constraints.update(nb.prefix_state, elem_variant, pos);
-
-                    nb.sim = sim.simulate(nb.mt, faults, tps);
-                    nb.score = scorer(nb.sim, nb.mt);
-
-                    ++total_candidates;
-                    if (topk_heap.size() < beam_width) {
-                        topk_heap.push(std::move(nb));
-                    } else if (nb.score > topk_heap.top().score) {
-                        topk_heap.pop();
-                        topk_heap.push(std::move(nb));
-                    }
-                });
-            }
-        }
-
-        // materialize next beam from heap (sorted desc)
-        std::vector<SB_BeamNode> next;
-        next.reserve(topk_heap.size());
-        while (!topk_heap.empty()) {
-            SB_BeamNode top = std::move(const_cast<SB_BeamNode&>(topk_heap.top()));
-            topk_heap.pop();
-            next.push_back(std::move(top));
-        }
-        std::sort(next.begin(), next.end(), better);
-
-        std::cout << "[SBeam] Level "<< (pos+1) << "/"<< L << ": candidates="<< total_candidates
-                  << ", kept="<< next.size() << ", cap="<< expand_cap << std::endl;
-        if (next.empty()) break;
-        beam = std::move(next);
-    }
-
-    // Convert final beam to results
-    std::vector<CandidateResult> results; results.reserve(beam.size());
-    for (const auto& node : beam) {
-        CandidateResult cr; cr.sequence = node.seq; cr.march_test = node.mt; cr.sim_result = node.sim; cr.score = scorer(cr.sim_result, cr.march_test); results.push_back(std::move(cr));
-    }
-    std::sort(results.begin(), results.end(), [](const CandidateResult& a, const CandidateResult& b){ return a.score > b.score; });
-    if (top_k>0 && results.size()>top_k) results.resize(top_k);
-    return results;
-}
-
-} // namespace (streaming)
+// (Removed prior anonymous namespace streaming implementation; replaced by BeamTemplateSearcher::run_stream method.)
 static vector<CandidateResult> run_greedy_prefixes(FaultSimulator& sim,
                                                    const TemplateLibrary& lib,
                                                    const vector<Fault>& faults,
@@ -480,7 +312,7 @@ int main(int argc, char** argv){
     std::string out = argv[4];
 
     std::size_t slot_count = 4; // default
-    std::size_t expand_cap = 64; // default cap per template element
+    std::size_t expand_cap = std::numeric_limits<std::size_t>::max(); // default: unlimited cap per template element
     std::string json_path_override;
     double w_state = 0.9, w_total = 0.5, op_penalty = 0.01;
 
@@ -500,15 +332,16 @@ int main(int argc, char** argv){
     FaultSimulator sim;
     auto lib = make_bruce_lib(slot_count);
 
-    // Constraints
-    SequenceConstraintSet seq_constraints;
-    seq_constraints.add(std::make_shared<FirstElementWriteOnlyConstraint>());
-    seq_constraints.add(std::make_shared<DataReadPolarityConstraint>());
-
-    const std::size_t TOPK_BEAM = BW; // dynamic top list tied to beam width
+    // Constraints (separate for greedy and beam)
+    SequenceConstraintSet greedy_constraints_demo;
+    greedy_constraints_demo.add(std::make_shared<FirstElementWriteOnlyConstraint>());
+    greedy_constraints_demo.add(std::make_shared<DataReadPolarityConstraint>());
+    SequenceConstraintSet beam_constraints_demo;
+    beam_constraints_demo.add(std::make_shared<FirstElementWriteOnlyConstraint>());
+    beam_constraints_demo.add(std::make_shared<DataReadPolarityConstraint>());
 
     // Greedy best (single) using constraints (first element write no read + polarity)
-    GreedyTemplateSearcher greedy_searcher(sim, lib, faults_vec, tps_vec, std::make_unique<ValueExpandingGenerator>(), scorer, &seq_constraints);
+    GreedyTemplateSearcher greedy_searcher(sim, lib, faults_vec, tps_vec, std::make_unique<ValueExpandingGenerator>(), scorer, &greedy_constraints_demo);
     auto t0 = std::chrono::steady_clock::now();
     CandidateResult greedy_best = greedy_searcher.run(L);
     // auto greedy_best = run_greedy_prefixes(sim, lib, faults_vec, tps_vec, L, L, scorer).back(); // take only final full-length result
@@ -516,13 +349,34 @@ int main(int argc, char** argv){
     auto greedy_ms = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
     std::cout << "[Greedy] Elapsed: "<< greedy_ms << " ms" << std::endl;
 
-    // Streaming beam
-    std::cout << "[SBeam] Start: L="<< L << ", beam_width="<< BW << ", lib="<< lib.size() << ", cap="<< expand_cap << std::endl;
+    // Streaming beam via integrated BeamTemplateSearcher::run_stream
+    auto progress = [L](std::size_t level, std::size_t candidates, std::size_t kept){
+        std::cout << "[SBeam] Level "<< level << "/"<< L << ": candidates="<< candidates << ", kept="<< kept << std::endl;
+    };
+    BeamTemplateSearcher stream_searcher(
+        sim, lib, faults_vec, tps_vec, BW,
+        std::make_unique<ValueExpandingGenerator>(),
+        scorer,
+        &beam_constraints_demo,
+        progress
+    );
+    std::cout << "[SBeam] Start: L="<< L << ", beam_width="<< BW << ", lib="<< lib.size() << ", cap="<< (expand_cap==std::numeric_limits<std::size_t>::max()?std::string("unlimited"):std::to_string(expand_cap)) << std::endl;
     auto t2 = std::chrono::steady_clock::now();
-    auto beam_list = run_beam_topk_streaming(sim, lib, faults_vec, tps_vec, L, BW, TOPK_BEAM, scorer, seq_constraints, expand_cap);
+    auto beam_list = stream_searcher.run_stream(L, expand_cap);
     auto t3 = std::chrono::steady_clock::now();
     auto beam_ms = std::chrono::duration_cast<std::chrono::milliseconds>(t3 - t2).count();
     std::cout << "[SBeam] Elapsed: "<< beam_ms << " ms" << std::endl;
+    if(!beam_list.empty()){
+        double best_cov = 0.0, best_state = 0.0; std::size_t best_ops=0;
+        for(const auto& cr : beam_list){
+            best_cov = std::max(best_cov, cr.sim_result.total_coverage);
+            best_state = std::max(best_state, cr.sim_result.state_coverage);
+            std::size_t ops=0; for(const auto& e: cr.march_test.elements) ops+=e.ops.size();
+            best_ops = std::max(best_ops, ops);
+        }
+        std::cout << "[SBeam] Best total_coverage=" << best_cov << ", best state_coverage=" << best_state << ", max ops=" << best_ops << std::endl;
+    }
+    std::cout << "[Greedy] total_coverage=" << greedy_best.sim_result.total_coverage << ", state_coverage=" << greedy_best.sim_result.state_coverage << std::endl;
 
     auto combined = unify_results(greedy_best, beam_list);
     TemplateSearchReport{}.gen_html(combined, out, w_state, w_total, op_penalty, slot_count, greedy_ms, beam_ms);

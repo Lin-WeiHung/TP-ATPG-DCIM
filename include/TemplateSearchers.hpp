@@ -21,6 +21,7 @@
 #include <functional> // v2: for ScoreFunc
 #include <sstream>
 #include <cstddef>
+#include <queue>
 
 #include "FaultSimulator.hpp" // uses your existing simulator types & simulate(). :contentReference[oaicite:1]{index=1}
 
@@ -708,6 +709,98 @@ public:
 
         if (top_k>0 && results.size()>top_k) results.resize(top_k);
         return results;
+    }
+
+    // Streaming beam search (DFS enumeration):
+    //  - Enumerates all value permutations for each template slot via DFS (R/W/Compute), avoiding generator ordering bias
+    //  - Keeps only top beam_width_ nodes per level using min-heap (score ascending)
+    //  - expand_cap limits variants per template; default = unlimited (numeric_limits::max())
+    //  - PrefixState is per node; greedy prefix_state not reused (separate state)
+    //  - Constraints are read-only strategy objects; no shared mutable state
+    //  - Returns up to beam_width_ final candidates sorted by score desc
+    vector<CandidateResult> run_stream(size_t L,
+                                       size_t expand_cap = std::numeric_limits<size_t>::max()) {
+        struct StreamNode {
+            vector<TemplateLibrary::TemplateId> seq;
+            MarchTest mt;
+            SimulationResult sim;
+            double score{0.0};
+            PrefixState prefix_state; // per-path sequence state
+        };
+        auto betterScore = [](const StreamNode& a, const StreamNode& b){ return a.score > b.score; };
+
+        // Initialize beam with root
+        vector<StreamNode> beam;
+        beam.push_back(StreamNode{}); beam.back().mt.name = "stream_root"; // empty
+
+        for(std::size_t level=0; level<L; ++level){
+            // min-heap (score ascending) storing top beam_width_ nodes
+            auto cmpMin = [](const StreamNode& a, const StreamNode& b){ return a.score > b.score; };
+            std::priority_queue<StreamNode, std::vector<StreamNode>, decltype(cmpMin)> heap(cmpMin);
+            std::size_t total_candidates = 0;
+
+            for(const auto& node : beam){
+                for(std::size_t tid=0; tid<lib_.size(); ++tid){
+                    const auto& et = lib_.at(tid);
+                    // Enumerate element variants on-the-fly with cap
+                    // Build slot option lists
+                    struct SlotChoices { TemplateOpKind kind; std::vector<Op> opts; };
+                    std::vector<SlotChoices> slots; slots.reserve(et.slot_count());
+                    auto add_compute = [](std::vector<Op>& v){ for(int m=0;m<8;++m){ Op o; o.kind=OpKind::ComputeAnd; o.C_T=(m&1)?Val::One:Val::Zero; o.C_M=(m&2)?Val::One:Val::Zero; o.C_B=(m&4)?Val::One:Val::Zero; v.push_back(o);} };
+                    for(const auto& s : et.get_slots()){
+                        SlotChoices sc{ s.kind, {} };
+                        switch(s.kind){
+                            case TemplateOpKind::None: break;
+                            case TemplateOpKind::Read: {
+                                Op r0; r0.kind=OpKind::Read; r0.value=Val::Zero; Op r1; r1.kind=OpKind::Read; r1.value=Val::One; sc.opts={r0,r1};
+                            } break;
+                            case TemplateOpKind::Write: {
+                                Op w0; w0.kind=OpKind::Write; w0.value=Val::Zero; Op w1; w1.kind=OpKind::Write; w1.value=Val::One; sc.opts={w0,w1};
+                            } break;
+                            case TemplateOpKind::Compute: {
+                                add_compute(sc.opts);
+                            } break;
+                        }
+                        slots.push_back(std::move(sc));
+                    }
+                    std::vector<int> choice(slots.size(),0);
+                    std::size_t visited=0;
+                    std::function<void(std::size_t)> dfs = [&](std::size_t idx){
+                        if(visited>=expand_cap) return;
+                        if(idx==slots.size()){
+                            MarchElement elem; elem.order = et.get_order();
+                            for(std::size_t si=0; si<slots.size(); ++si){ if(slots[si].kind==TemplateOpKind::None) continue; elem.ops.push_back(slots[si].opts[choice[si]]); }
+                            // skip empty element (no ops)
+                            if(elem.ops.empty()) { ++visited; return; }
+                            if(constraints_ && !constraints_->allow(node.prefix_state, elem, level)){ ++visited; return; }
+                            StreamNode child; child.seq = node.seq; child.seq.push_back(tid); child.mt = node.mt; child.mt.elements.push_back(elem); child.prefix_state = node.prefix_state;
+                            if(constraints_) constraints_->update(child.prefix_state, elem, level); else ++child.prefix_state.length;
+                            child.sim = sim_.simulate(child.mt, faults_, tps_);
+                            child.score = scorer_(child.sim, child.mt);
+                            ++visited; ++total_candidates;
+                            if(heap.size()<beam_width_) heap.push(std::move(child));
+                            else if(child.score > heap.top().score){ heap.pop(); heap.push(std::move(child)); }
+                            return;
+                        }
+                        if(slots[idx].kind==TemplateOpKind::None){ dfs(idx+1); return; }
+                        for(int opt_i=0; opt_i<(int)slots[idx].opts.size(); ++opt_i){ if(visited>=expand_cap) break; choice[idx]=opt_i; dfs(idx+1); }
+                    };
+                    dfs(0);
+                }
+            }
+            // materialize heap into next beam
+            std::vector<StreamNode> next; next.reserve(heap.size());
+            while(!heap.empty()){ next.push_back(std::move(const_cast<StreamNode&>(heap.top()))); heap.pop(); }
+            std::sort(next.begin(), next.end(), betterScore);
+            if(progress_cb_) progress_cb_(level+1, total_candidates, next.size());
+            if(next.empty()) break;
+            beam = std::move(next);
+        }
+        // Convert final beam to results
+        vector<CandidateResult> out; out.reserve(beam.size());
+        for(auto& n : beam){ CandidateResult cr; cr.sequence = n.seq; cr.march_test = n.mt; cr.sim_result = n.sim; cr.score = scorer_(cr.sim_result, cr.march_test); out.push_back(std::move(cr)); }
+        std::sort(out.begin(), out.end(), [](const CandidateResult& a, const CandidateResult& b){ return a.score > b.score; });
+        return out; // size <= beam_width_
     }
 
 private:
