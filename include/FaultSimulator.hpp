@@ -964,15 +964,17 @@ struct OpScore {
 };
 
 struct ScoreWeights {
-    double alpha_S = 1.00; // S_cov 權重
-    double beta_D = 2.00; // D_cov 權重
+    double alpha_state = 1.00; // state_cov 權重
+    double alpha_sens  = 1.00; // sens_cov 權重
+    double beta_D      = 2.00; // D_cov 權重
     double gamma_MPart = 0.50; // 遮蔽 50% 懲罰
-    double lambda_MAll    = 1.00; // 遮蔽 100% 懲罰
+    double lambda_MAll = 1.00; // 遮蔽 100% 懲罰
 };
 
 struct OpScoreOutcome {
     double total_score{0.0};
-    double S_cov{0.0};
+    double state_cov{0.0};
+    double sens_cov{0.0};
     int D_cov{0};
     int part_M_num{0};
     int full_M_num{0};
@@ -986,8 +988,9 @@ public:
     void set_weights(const ScoreWeights& w) { weights_ = w; }
 private:
     GroupIndex group_index_;
-    ScoreWeights weights_;                  
-    double calculate_S_cov(const vector<TpGid>& state_list, const vector<TpGid>& sens_list);
+    ScoreWeights weights_;
+    double calculate_state_cov(const vector<TpGid>& state_list);
+    double calculate_sens_cov(const vector<TpGid>& sens_list);
     int calculate_D_cov(const vector<TpGid>& detect_list);
     int calculate_part_masking_num(const vector<MaskOutcome>& masked_list);
     int calculate_full_masking_num(const vector<MaskOutcome>& masked_list);
@@ -995,37 +998,43 @@ private:
 
 inline vector<OpScoreOutcome> OpScorer::score_ops(const vector<RawCoverLists>& sim_results) {
     vector<OpScoreOutcome> outcomes;
-    // 重置所有 coverage 與階段旗標，確保每次打分彼此獨立
     group_index_.reset_all();
     for (const auto& sim_result : sim_results) {
         OpScoreOutcome out;
         out.norm_factor = max(1.0, (double)group_index_.uncovered_groups());
         out.D_cov = calculate_D_cov(sim_result.det_cover);
-        out.S_cov = calculate_S_cov(sim_result.state_cover, sim_result.sens_cover);
+        out.state_cov = calculate_state_cov(sim_result.state_cover);
+        out.sens_cov  = calculate_sens_cov(sim_result.sens_cover);
         out.part_M_num = calculate_part_masking_num(sim_result.masked);
         out.full_M_num = calculate_full_masking_num(sim_result.masked);
-        out.total_score = weights_.alpha_S * out.S_cov / out.norm_factor +
-                        weights_.beta_D * static_cast<double>(out.D_cov) / out.norm_factor -
-                        weights_.gamma_MPart * out.part_M_num / out.norm_factor -
-                        weights_.lambda_MAll * out.full_M_num / out.norm_factor;
+        out.total_score = (weights_.alpha_state * out.state_cov +
+                           weights_.alpha_sens  * out.sens_cov +
+                           weights_.beta_D      * static_cast<double>(out.D_cov) -
+                           weights_.gamma_MPart * out.part_M_num -
+                           weights_.lambda_MAll * out.full_M_num) / out.norm_factor;
         outcomes.push_back(out);
     }
     return outcomes;
 }
 
-inline double OpScorer::calculate_S_cov(const vector<TpGid>& state_list, const vector<TpGid>& sens_list) {
-    double total_S_cov = 0.0;
-    for (const auto& tp_gid : state_list) {
+inline double OpScorer::calculate_state_cov(const vector<TpGid>& state_list) {
+    double total = 0.0;
+    for (auto tp_gid : state_list) {
         if (!group_index_.is_tp_covered(tp_gid) && group_index_.mark_group_state_flagged_if_new(tp_gid)) {
-            total_S_cov ++;
+            total++;
         }
     }
-    for (const auto& tp_gid : sens_list) {
+    return total;
+}
+
+inline double OpScorer::calculate_sens_cov(const vector<TpGid>& sens_list) {
+    double total = 0.0;
+    for (auto tp_gid : sens_list) {
         if (!group_index_.is_tp_covered(tp_gid) && group_index_.mark_group_sens_flagged_if_new(tp_gid)) {
-            total_S_cov ++;
+            total++;
         }
     }
-    return total_S_cov;
+    return total;
 }
 
 inline int OpScorer::calculate_D_cov(const vector<TpGid>& detect_list) {

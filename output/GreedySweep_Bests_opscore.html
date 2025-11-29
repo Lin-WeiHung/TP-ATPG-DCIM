@@ -1,0 +1,305 @@
+<!doctype html><html><head><meta charset=utf-8><title>Greedy Sweep Report (Op Scores)</title><style>
+    :root { --bg:#111; --panel:#1e1e1e; --border:#333; --accent:#4ea3ff; --accent2:#ff9f43; --font:#eaeaea; --muted:#999; --state:#4caf50; --sens:#ff9800; --total:#2196f3; }
+    body { background:var(--bg); color:var(--font); font-family:Inter,Segoe UI,system-ui,sans-serif; margin:32px; line-height:1.4; }
+    h1 { font-size:28px; margin:0 0 12px; font-weight:600; }
+    .meta { display:flex; flex-wrap:wrap; gap:16px; margin-bottom:20px; }
+    .metric { background:var(--panel); padding:10px 14px; border:1px solid var(--border); border-radius:8px; min-width:160px; }
+    .metric .lbl { font-size:12px; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); }
+    .metric .val { font-size:18px; font-weight:600; }
+    .cards { display:grid; gap:28px; grid-template-columns:repeat(auto-fit,minmax(420px,1fr)); }
+    .card { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px 16px 16px; position:relative; box-shadow:0 2px 4px rgba(0,0,0,.35); }
+    .card-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; font-size:13px; }
+    .card-head .score { font-weight:600; color:var(--accent); }
+    .card-head .ops { color:var(--muted); }
+    .cov-row { display:flex; align-items:center; gap:10px; margin:4px 0; font-size:12px; }
+    .cov-row .lbl { width:70px; font-weight:500; }
+    .bar-wrap { flex:1; background:#222; border:1px solid #2d2d2d; border-radius:6px; height:10px; overflow:hidden; }
+    .bar { height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); }
+    .bar.state { background:var(--state); }
+    .bar.sens { background:var(--sens); }
+    .bar.total { background:var(--total); }
+    .score-break { margin:10px 0 8px; padding:8px 10px; background:#181818; border:1px solid #262626; border-radius:8px; font-size:11px; display:grid; gap:2px; }
+    .score-break .sum { margin-top:4px; font-weight:600; color:var(--accent); }
+    .seq { font-size:12px; color:var(--muted); margin:8px 0 10px; }
+    table.mt { width:100%; border-collapse:collapse; font-size:11px; }
+    table.mt td { padding:4px 6px; border-bottom:1px solid #222; }
+    td.idx { width:38px; color:var(--muted); }
+    td.ord { width:56px; font-weight:600; }
+    td.ops { font-family:monospace; font-size:11px; }
+    .footer { margin-top:40px; font-size:11px; color:var(--muted); text-align:center; }
+    pre.pattern { background:#0f0f0f; border:1px solid #262626; border-radius:8px; padding:10px; font-size:11px; overflow:auto; }
+    @media (max-width:700px){ .cards { grid-template-columns:1fr; } }
+    </style></head><body><h1>Greedy Sweep Report (Op Scores)</h1><div class=meta><div class=metric><div class=lbl>Items</div><div class=val>24</div></div><div class=metric><div class=lbl>Weights</div><div class=val>aS=4 bD=3 gMP=0.5 lMA=1 pen=0.01</div></div><div class=metric><div class=lbl>Mode</div><div class=val>OpScorer</div></div></div><h2>Configurations</h2><div class=cards><div class=card>
+  <div class="card-head"><span class=score>Score: 0.460</span><span class=ops>Total Ops: 15</span></div>
+  <div class=cov-row><span class=lbl>State 100%</span><div class=bar-wrap><div class='bar state' style='width:100.000%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 97.06%</span><div class=bar-wrap><div class='bar sens' style='width:97.059%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 83.82%</span><div class=bar-wrap><div class='bar total' style='width:83.824%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>W1 R0 C(1,1,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>W0 C(0,0,0) C(1,1,1)</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Up</td><td class=ops>R0 W1 C(0,0,0)</td></tr>
+  <tr><td class=idx>4</td><td class=ord>Up</td><td class=ops>C(1,1,0) R1 W0</td></tr>
+  <tr><td class=idx>5</td><td class=ord>Down</td><td class=ops>W1 C(0,1,0)</td></tr>
+</table>
+<details><summary>Op Scores (15)</summary><table class=mt><tr><td class=idx>#</td><td class=ord>S_cov</td><td class=ops>D_cov</td><td class=ops>PartM</td><td class=ops>FullM</td><td class=ops>TotalScore</td></tr><tr><td class=idx>0</td><td class=ord>2.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0.154</td></tr><tr><td class=idx>1</td><td class=ord>32.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>17</td><td class=ops>2.135</td></tr><tr><td class=idx>2</td><td class=ord>36.000</td><td class=ops>0</td><td class=ops>25</td><td class=ops>0</td><td class=ops>2.529</td></tr><tr><td class=idx>3</td><td class=ord>4.000</td><td class=ops>14</td><td class=ops>19</td><td class=ops>0</td><td class=ops>0.933</td></tr><tr><td class=idx>4</td><td class=ord>18.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>25</td><td class=ops>1.237</td></tr><tr><td class=idx>5</td><td class=ord>14.000</td><td class=ops>3</td><td class=ops>16</td><td class=ops>0</td><td class=ops>1.500</td></tr><tr><td class=idx>6</td><td class=ord>6.000</td><td class=ops>5</td><td class=ops>16</td><td class=ops>0</td><td class=ops>0.886</td></tr><tr><td class=idx>7</td><td class=ord>1.000</td><td class=ops>8</td><td class=ops>8</td><td class=ops>0</td><td class=ops>0.800</td></tr><tr><td class=idx>8</td><td class=ord>2.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>8</td><td class=ops>0.000</td></tr><tr><td class=idx>9</td><td class=ord>10.000</td><td class=ops>1</td><td class=ops>16</td><td class=ops>0</td><td class=ops>1.591</td></tr><tr><td class=idx>10</td><td class=ord>2.000</td><td class=ops>7</td><td class=ops>1</td><td class=ops>0</td><td class=ops>1.357</td></tr><tr><td class=idx>11</td><td class=ord>1.000</td><td class=ops>4</td><td class=ops>1</td><td class=ops>0</td><td class=ops>1.107</td></tr><tr><td class=idx>12</td><td class=ord>2.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0.800</td></tr><tr><td class=idx>13</td><td class=ord>4.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>8</td><td class=ops>0.800</td></tr><tr><td class=idx>14</td><td class=ord>2.000</td><td class=ops>1</td><td class=ops>0</td><td class=ops>0</td><td class=ops>1.100</td></tr></table><div class=score-break><div>sum(op)=16.9278</div><div>op_penalty: -0.1500</div><div class=sum>final(opscore approx)=16.7778</div></div></details></div>
+<div class=card>
+  <div class="card-head"><span class=score>Score: 0.321</span><span class=ops>Total Ops: 12</span></div>
+  <div class=cov-row><span class=lbl>State 98.53%</span><div class=bar-wrap><div class='bar state' style='width:98.529%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 95.59%</span><div class=bar-wrap><div class='bar sens' style='width:95.588%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 82.35%</span><div class=bar-wrap><div class='bar total' style='width:82.353%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>W1 R0 C(0,0,0) C(1,1,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>R1 W0 C(0,0,0) C(1,1,0)</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Down</td><td class=ops>R0 W1 C(0,1,0)</td></tr>
+</table>
+<details><summary>Op Scores (12)</summary><table class=mt><tr><td class=idx>#</td><td class=ord>S_cov</td><td class=ops>D_cov</td><td class=ops>PartM</td><td class=ops>FullM</td><td class=ops>TotalScore</td></tr><tr><td class=idx>0</td><td class=ord>2.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0.154</td></tr><tr><td class=idx>1</td><td class=ord>32.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>17</td><td class=ops>2.135</td></tr><tr><td class=idx>2</td><td class=ord>36.000</td><td class=ops>0</td><td class=ops>25</td><td class=ops>0</td><td class=ops>2.529</td></tr><tr><td class=idx>3</td><td class=ord>7.000</td><td class=ops>3</td><td class=ops>25</td><td class=ops>0</td><td class=ops>0.471</td></tr><tr><td class=idx>4</td><td class=ord>7.000</td><td class=ops>12</td><td class=ops>18</td><td class=ops>0</td><td class=ops>1.122</td></tr><tr><td class=idx>5</td><td class=ord>13.000</td><td class=ops>7</td><td class=ops>11</td><td class=ops>0</td><td class=ops>1.824</td></tr><tr><td class=idx>6</td><td class=ord>6.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>8</td><td class=ops>0.533</td></tr><tr><td class=idx>7</td><td class=ord>14.000</td><td class=ops>3</td><td class=ops>16</td><td class=ops>0</td><td class=ops>1.900</td></tr><tr><td class=idx>8</td><td class=ord>6.000</td><td class=ops>5</td><td class=ops>16</td><td class=ops>0</td><td class=ops>1.148</td></tr><tr><td class=idx>9</td><td class=ord>1.000</td><td class=ops>7</td><td class=ops>8</td><td class=ops>0</td><td class=ops>0.955</td></tr><tr><td class=idx>10</td><td class=ord>2.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>4</td><td class=ops>0.267</td></tr><tr><td class=idx>11</td><td class=ord>2.000</td><td class=ops>4</td><td class=ops>0</td><td class=ops>0</td><td class=ops>1.333</td></tr></table><div class=score-break><div>sum(op)=14.3713</div><div>op_penalty: -0.1200</div><div class=sum>final(opscore approx)=14.2513</div></div></details></div>
+<div class=card>
+  <div class="card-head"><span class=score>Score: 0.494</span><span class=ops>Total Ops: 13</span></div>
+  <div class=cov-row><span class=lbl>State 98.53%</span><div class=bar-wrap><div class='bar state' style='width:98.529%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 92.65%</span><div class=bar-wrap><div class='bar sens' style='width:92.647%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 82.35%</span><div class=bar-wrap><div class='bar total' style='width:82.353%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>W1 R0 C(1,1,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>W0 C(0,0,0) C(1,1,1)</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Up</td><td class=ops>R0 W1 C(0,0,0)</td></tr>
+  <tr><td class=idx>4</td><td class=ord>Up</td><td class=ops>C(1,1,0) R1 W0</td></tr>
+</table>
+<details><summary>Op Scores (13)</summary><table class=mt><tr><td class=idx>#</td><td class=ord>S_cov</td><td class=ops>D_cov</td><td class=ops>PartM</td><td class=ops>FullM</td><td class=ops>TotalScore</td></tr><tr><td class=idx>0</td><td class=ord>2.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0.154</td></tr><tr><td class=idx>1</td><td class=ord>32.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>17</td><td class=ops>2.135</td></tr><tr><td class=idx>2</td><td class=ord>36.000</td><td class=ops>0</td><td class=ops>25</td><td class=ops>0</td><td class=ops>2.529</td></tr><tr><td class=idx>3</td><td class=ord>4.000</td><td class=ops>14</td><td class=ops>19</td><td class=ops>0</td><td class=ops>0.933</td></tr><tr><td class=idx>4</td><td class=ord>18.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>25</td><td class=ops>1.237</td></tr><tr><td class=idx>5</td><td class=ord>14.000</td><td class=ops>3</td><td class=ops>16</td><td class=ops>0</td><td class=ops>1.500</td></tr><tr><td class=idx>6</td><td class=ord>6.000</td><td class=ops>5</td><td class=ops>16</td><td class=ops>0</td><td class=ops>0.886</td></tr><tr><td class=idx>7</td><td class=ord>1.000</td><td class=ops>8</td><td class=ops>8</td><td class=ops>0</td><td class=ops>0.800</td></tr><tr><td class=idx>8</td><td class=ord>2.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>8</td><td class=ops>0.000</td></tr><tr><td class=idx>9</td><td class=ord>10.000</td><td class=ops>1</td><td class=ops>16</td><td class=ops>0</td><td class=ops>1.591</td></tr><tr><td class=idx>10</td><td class=ord>2.000</td><td class=ops>7</td><td class=ops>1</td><td class=ops>0</td><td class=ops>1.357</td></tr><tr><td class=idx>11</td><td class=ord>1.000</td><td class=ops>4</td><td class=ops>1</td><td class=ops>0</td><td class=ops>1.107</td></tr><tr><td class=idx>12</td><td class=ord>2.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0.800</td></tr></table><div class=score-break><div>sum(op)=15.0278</div><div>op_penalty: -0.1300</div><div class=sum>final(opscore approx)=14.8978</div></div></details></div>
+<div class=card>
+  <div class="card-head"><span class=score>Score: 0.341</span><span class=ops>Total Ops: 12</span></div>
+  <div class=cov-row><span class=lbl>State 98.53%</span><div class=bar-wrap><div class='bar state' style='width:98.529%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 95.59%</span><div class=bar-wrap><div class='bar sens' style='width:95.588%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 82.35%</span><div class=bar-wrap><div class='bar total' style='width:82.353%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>W1 R0 C(0,0,0) C(1,1,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>R1 W0 C(0,0,0) C(1,1,0)</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Down</td><td class=ops>R0 W1 C(0,1,0)</td></tr>
+</table>
+<details><summary>Op Scores (12)</summary><table class=mt><tr><td class=idx>#</td><td class=ord>S_cov</td><td class=ops>D_cov</td><td class=ops>PartM</td><td class=ops>FullM</td><td class=ops>TotalScore</td></tr><tr><td class=idx>0</td><td class=ord>2.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0.154</td></tr><tr><td class=idx>1</td><td class=ord>32.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>17</td><td class=ops>2.135</td></tr><tr><td class=idx>2</td><td class=ord>36.000</td><td class=ops>0</td><td class=ops>25</td><td class=ops>0</td><td class=ops>2.529</td></tr><tr><td class=idx>3</td><td class=ord>7.000</td><td class=ops>3</td><td class=ops>25</td><td class=ops>0</td><td class=ops>0.471</td></tr><tr><td class=idx>4</td><td class=ord>7.000</td><td class=ops>12</td><td class=ops>18</td><td class=ops>0</td><td class=ops>1.122</td></tr><tr><td class=idx>5</td><td class=ord>13.000</td><td class=ops>7</td><td class=ops>11</td><td class=ops>0</td><td class=ops>1.824</td></tr><tr><td class=idx>6</td><td class=ord>6.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>8</td><td class=ops>0.533</td></tr><tr><td class=idx>7</td><td class=ord>14.000</td><td class=ops>3</td><td class=ops>16</td><td class=ops>0</td><td class=ops>1.900</td></tr><tr><td class=idx>8</td><td class=ord>6.000</td><td class=ops>5</td><td class=ops>16</td><td class=ops>0</td><td class=ops>1.148</td></tr><tr><td class=idx>9</td><td class=ord>1.000</td><td class=ops>7</td><td class=ops>8</td><td class=ops>0</td><td class=ops>0.955</td></tr><tr><td class=idx>10</td><td class=ord>2.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>4</td><td class=ops>0.267</td></tr><tr><td class=idx>11</td><td class=ord>2.000</td><td class=ops>4</td><td class=ops>0</td><td class=ops>0</td><td class=ops>1.333</td></tr></table><div class=score-break><div>sum(op)=14.3713</div><div>op_penalty: -0.1200</div><div class=sum>final(opscore approx)=14.2513</div></div></details></div>
+<div class=card>
+  <div class="card-head"><span class=score>Score: 0.362</span><span class=ops>Total Ops: 12</span></div>
+  <div class=cov-row><span class=lbl>State 98.53%</span><div class=bar-wrap><div class='bar state' style='width:98.529%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 95.59%</span><div class=bar-wrap><div class='bar sens' style='width:95.588%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 82.35%</span><div class=bar-wrap><div class='bar total' style='width:82.353%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>W1 R0 C(0,0,0) C(1,1,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>R1 W0 C(0,0,0) C(1,1,0)</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Down</td><td class=ops>R0 W1 C(0,1,0)</td></tr>
+</table>
+<details><summary>Op Scores (12)</summary><table class=mt><tr><td class=idx>#</td><td class=ord>S_cov</td><td class=ops>D_cov</td><td class=ops>PartM</td><td class=ops>FullM</td><td class=ops>TotalScore</td></tr><tr><td class=idx>0</td><td class=ord>2.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0.154</td></tr><tr><td class=idx>1</td><td class=ord>32.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>17</td><td class=ops>2.135</td></tr><tr><td class=idx>2</td><td class=ord>36.000</td><td class=ops>0</td><td class=ops>25</td><td class=ops>0</td><td class=ops>2.529</td></tr><tr><td class=idx>3</td><td class=ord>7.000</td><td class=ops>3</td><td class=ops>25</td><td class=ops>0</td><td class=ops>0.471</td></tr><tr><td class=idx>4</td><td class=ord>7.000</td><td class=ops>12</td><td class=ops>18</td><td class=ops>0</td><td class=ops>1.122</td></tr><tr><td class=idx>5</td><td class=ord>13.000</td><td class=ops>7</td><td class=ops>11</td><td class=ops>0</td><td class=ops>1.824</td></tr><tr><td class=idx>6</td><td class=ord>6.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>8</td><td class=ops>0.533</td></tr><tr><td class=idx>7</td><td class=ord>14.000</td><td class=ops>3</td><td class=ops>16</td><td class=ops>0</td><td class=ops>1.900</td></tr><tr><td class=idx>8</td><td class=ord>6.000</td><td class=ops>5</td><td class=ops>16</td><td class=ops>0</td><td class=ops>1.148</td></tr><tr><td class=idx>9</td><td class=ord>1.000</td><td class=ops>7</td><td class=ops>8</td><td class=ops>0</td><td class=ops>0.955</td></tr><tr><td class=idx>10</td><td class=ord>2.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>4</td><td class=ops>0.267</td></tr><tr><td class=idx>11</td><td class=ord>2.000</td><td class=ops>4</td><td class=ops>0</td><td class=ops>0</td><td class=ops>1.333</td></tr></table><div class=score-break><div>sum(op)=14.3713</div><div>op_penalty: -0.1200</div><div class=sum>final(opscore approx)=14.2513</div></div></details></div>
+<div class=card>
+  <div class="card-head"><span class=score>Score: 0.498</span><span class=ops>Total Ops: 10</span></div>
+  <div class=cov-row><span class=lbl>State 98.53%</span><div class=bar-wrap><div class='bar state' style='width:98.529%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 92.65%</span><div class=bar-wrap><div class='bar sens' style='width:92.647%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 63.24%</span><div class=bar-wrap><div class='bar total' style='width:63.235%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>W1 R0 C(1,1,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>W0 C(0,0,0) C(1,1,1)</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Up</td><td class=ops>R0 W1 C(0,0,0)</td></tr>
+</table>
+<details><summary>Op Scores (10)</summary><table class=mt><tr><td class=idx>#</td><td class=ord>S_cov</td><td class=ops>D_cov</td><td class=ops>PartM</td><td class=ops>FullM</td><td class=ops>TotalScore</td></tr><tr><td class=idx>0</td><td class=ord>2.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0.154</td></tr><tr><td class=idx>1</td><td class=ord>32.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>17</td><td class=ops>2.135</td></tr><tr><td class=idx>2</td><td class=ord>36.000</td><td class=ops>0</td><td class=ops>25</td><td class=ops>0</td><td class=ops>2.529</td></tr><tr><td class=idx>3</td><td class=ord>4.000</td><td class=ops>14</td><td class=ops>19</td><td class=ops>0</td><td class=ops>0.933</td></tr><tr><td class=idx>4</td><td class=ord>18.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>25</td><td class=ops>1.237</td></tr><tr><td class=idx>5</td><td class=ord>14.000</td><td class=ops>3</td><td class=ops>16</td><td class=ops>0</td><td class=ops>1.500</td></tr><tr><td class=idx>6</td><td class=ord>6.000</td><td class=ops>5</td><td class=ops>16</td><td class=ops>0</td><td class=ops>0.886</td></tr><tr><td class=idx>7</td><td class=ord>1.000</td><td class=ops>8</td><td class=ops>8</td><td class=ops>0</td><td class=ops>0.800</td></tr><tr><td class=idx>8</td><td class=ord>2.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>8</td><td class=ops>0.000</td></tr><tr><td class=idx>9</td><td class=ord>10.000</td><td class=ops>1</td><td class=ops>16</td><td class=ops>0</td><td class=ops>1.591</td></tr></table><div class=score-break><div>sum(op)=11.7635</div><div>op_penalty: -0.1000</div><div class=sum>final(opscore approx)=11.6635</div></div></details></div>
+<div class=card>
+  <div class="card-head"><span class=score>Score: 0.372</span><span class=ops>Total Ops: 9</span></div>
+  <div class=cov-row><span class=lbl>State 97.06%</span><div class=bar-wrap><div class='bar state' style='width:97.059%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 91.18%</span><div class=bar-wrap><div class='bar sens' style='width:91.176%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 63.24%</span><div class=bar-wrap><div class='bar total' style='width:63.235%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>W1 R0 C(0,0,0) C(1,1,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>R1 W0 C(0,0,0) C(1,1,0)</td></tr>
+</table>
+<details><summary>Op Scores (9)</summary><table class=mt><tr><td class=idx>#</td><td class=ord>S_cov</td><td class=ops>D_cov</td><td class=ops>PartM</td><td class=ops>FullM</td><td class=ops>TotalScore</td></tr><tr><td class=idx>0</td><td class=ord>2.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0.154</td></tr><tr><td class=idx>1</td><td class=ord>32.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>17</td><td class=ops>2.135</td></tr><tr><td class=idx>2</td><td class=ord>36.000</td><td class=ops>0</td><td class=ops>25</td><td class=ops>0</td><td class=ops>2.529</td></tr><tr><td class=idx>3</td><td class=ord>7.000</td><td class=ops>3</td><td class=ops>25</td><td class=ops>0</td><td class=ops>0.471</td></tr><tr><td class=idx>4</td><td class=ord>7.000</td><td class=ops>12</td><td class=ops>18</td><td class=ops>0</td><td class=ops>1.122</td></tr><tr><td class=idx>5</td><td class=ord>13.000</td><td class=ops>7</td><td class=ops>11</td><td class=ops>0</td><td class=ops>1.824</td></tr><tr><td class=idx>6</td><td class=ord>6.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>8</td><td class=ops>0.533</td></tr><tr><td class=idx>7</td><td class=ord>14.000</td><td class=ops>3</td><td class=ops>16</td><td class=ops>0</td><td class=ops>1.900</td></tr><tr><td class=idx>8</td><td class=ord>6.000</td><td class=ops>5</td><td class=ops>16</td><td class=ops>0</td><td class=ops>1.148</td></tr></table><div class=score-break><div>sum(op)=11.8167</div><div>op_penalty: -0.0900</div><div class=sum>final(opscore approx)=11.7267</div></div></details></div>
+<div class=card>
+  <div class="card-head"><span class=score>Score: 0.690</span><span class=ops>Total Ops: 11</span></div>
+  <div class=cov-row><span class=lbl>State 100%</span><div class=bar-wrap><div class='bar state' style='width:100.000%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 97.06%</span><div class=bar-wrap><div class='bar sens' style='width:97.059%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 58.82%</span><div class=bar-wrap><div class='bar total' style='width:58.824%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>W1 C(1,0,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>W0 C(1,1,1)</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Up</td><td class=ops>W1 C(0,1,0)</td></tr>
+  <tr><td class=idx>4</td><td class=ord>Up</td><td class=ops>W0 C(0,0,0)</td></tr>
+  <tr><td class=idx>5</td><td class=ord>Down</td><td class=ops>W1 C(0,1,0)</td></tr>
+</table>
+<details><summary>Op Scores (11)</summary><table class=mt><tr><td class=idx>#</td><td class=ord>S_cov</td><td class=ops>D_cov</td><td class=ops>PartM</td><td class=ops>FullM</td><td class=ops>TotalScore</td></tr><tr><td class=idx>0</td><td class=ord>2.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0.154</td></tr><tr><td class=idx>1</td><td class=ord>30.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>17</td><td class=ops>1.981</td></tr><tr><td class=idx>2</td><td class=ord>32.000</td><td class=ops>3</td><td class=ops>23</td><td class=ops>0</td><td class=ops>2.413</td></tr><tr><td class=idx>3</td><td class=ord>24.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>40</td><td class=ops>1.143</td></tr><tr><td class=idx>4</td><td class=ord>9.000</td><td class=ops>9</td><td class=ops>18</td><td class=ops>0</td><td class=ops>1.102</td></tr><tr><td class=idx>5</td><td class=ord>10.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>24</td><td class=ops>0.400</td></tr><tr><td class=idx>6</td><td class=ord>10.000</td><td class=ops>9</td><td class=ops>16</td><td class=ops>0</td><td class=ops>1.475</td></tr><tr><td class=idx>7</td><td class=ord>6.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>25</td><td class=ops>-0.032</td></tr><tr><td class=idx>8</td><td class=ord>10.000</td><td class=ops>3</td><td class=ops>16</td><td class=ops>0</td><td class=ops>1.323</td></tr><tr><td class=idx>9</td><td class=ord>4.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>27</td><td class=ops>-0.393</td></tr><tr><td class=idx>10</td><td class=ord>10.000</td><td class=ops>4</td><td class=ops>16</td><td class=ops>0</td><td class=ops>1.571</td></tr></table><div class=score-break><div>sum(op)=11.1369</div><div>op_penalty: -0.1100</div><div class=sum>final(opscore approx)=11.0269</div></div></details></div>
+<div class=card>
+  <div class="card-head"><span class=score>Score: 0.723</span><span class=ops>Total Ops: 9</span></div>
+  <div class=cov-row><span class=lbl>State 100%</span><div class=bar-wrap><div class='bar state' style='width:100.000%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 94.12%</span><div class=bar-wrap><div class='bar sens' style='width:94.118%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 52.94%</span><div class=bar-wrap><div class='bar total' style='width:52.941%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>W1 C(1,0,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>W0 C(1,1,1)</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Up</td><td class=ops>W1 C(0,1,0)</td></tr>
+  <tr><td class=idx>4</td><td class=ord>Up</td><td class=ops>W0 C(0,0,0)</td></tr>
+</table>
+<details><summary>Op Scores (9)</summary><table class=mt><tr><td class=idx>#</td><td class=ord>S_cov</td><td class=ops>D_cov</td><td class=ops>PartM</td><td class=ops>FullM</td><td class=ops>TotalScore</td></tr><tr><td class=idx>0</td><td class=ord>2.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0.154</td></tr><tr><td class=idx>1</td><td class=ord>30.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>17</td><td class=ops>1.981</td></tr><tr><td class=idx>2</td><td class=ord>32.000</td><td class=ops>3</td><td class=ops>23</td><td class=ops>0</td><td class=ops>2.413</td></tr><tr><td class=idx>3</td><td class=ord>24.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>40</td><td class=ops>1.143</td></tr><tr><td class=idx>4</td><td class=ord>9.000</td><td class=ops>9</td><td class=ops>18</td><td class=ops>0</td><td class=ops>1.102</td></tr><tr><td class=idx>5</td><td class=ord>10.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>24</td><td class=ops>0.400</td></tr><tr><td class=idx>6</td><td class=ord>10.000</td><td class=ops>9</td><td class=ops>16</td><td class=ops>0</td><td class=ops>1.475</td></tr><tr><td class=idx>7</td><td class=ord>6.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>25</td><td class=ops>-0.032</td></tr><tr><td class=idx>8</td><td class=ord>10.000</td><td class=ops>3</td><td class=ops>16</td><td class=ops>0</td><td class=ops>1.323</td></tr></table><div class=score-break><div>sum(op)=9.9583</div><div>op_penalty: -0.0900</div><div class=sum>final(opscore approx)=9.8683</div></div></details></div>
+<div class=card>
+  <div class="card-head"><span class=score>Score: 0.745</span><span class=ops>Total Ops: 7</span></div>
+  <div class=cov-row><span class=lbl>State 97.06%</span><div class=bar-wrap><div class='bar state' style='width:97.059%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 91.18%</span><div class=bar-wrap><div class='bar sens' style='width:91.176%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 47.06%</span><div class=bar-wrap><div class='bar total' style='width:47.059%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>W1 C(1,0,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>W0 C(1,1,1)</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Up</td><td class=ops>W1 C(0,1,0)</td></tr>
+</table>
+<details><summary>Op Scores (7)</summary><table class=mt><tr><td class=idx>#</td><td class=ord>S_cov</td><td class=ops>D_cov</td><td class=ops>PartM</td><td class=ops>FullM</td><td class=ops>TotalScore</td></tr><tr><td class=idx>0</td><td class=ord>2.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0.154</td></tr><tr><td class=idx>1</td><td class=ord>30.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>17</td><td class=ops>1.981</td></tr><tr><td class=idx>2</td><td class=ord>32.000</td><td class=ops>3</td><td class=ops>23</td><td class=ops>0</td><td class=ops>2.413</td></tr><tr><td class=idx>3</td><td class=ord>24.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>40</td><td class=ops>1.143</td></tr><tr><td class=idx>4</td><td class=ord>9.000</td><td class=ops>9</td><td class=ops>18</td><td class=ops>0</td><td class=ops>1.102</td></tr><tr><td class=idx>5</td><td class=ord>10.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>24</td><td class=ops>0.400</td></tr><tr><td class=idx>6</td><td class=ord>10.000</td><td class=ops>9</td><td class=ops>16</td><td class=ops>0</td><td class=ops>1.475</td></tr></table><div class=score-break><div>sum(op)=8.6680</div><div>op_penalty: -0.0700</div><div class=sum>final(opscore approx)=8.5980</div></div></details></div>
+<div class=card>
+  <div class="card-head"><span class=score>Score: 0.490</span><span class=ops>Total Ops: 7</span></div>
+  <div class=cov-row><span class=lbl>State 92.65%</span><div class=bar-wrap><div class='bar state' style='width:92.647%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 86.76%</span><div class=bar-wrap><div class='bar sens' style='width:86.765%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 45.59%</span><div class=bar-wrap><div class='bar total' style='width:45.588%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>W1 R0 C(1,1,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>W0 C(0,0,0) C(1,1,1)</td></tr>
+</table>
+<details><summary>Op Scores (7)</summary><table class=mt><tr><td class=idx>#</td><td class=ord>S_cov</td><td class=ops>D_cov</td><td class=ops>PartM</td><td class=ops>FullM</td><td class=ops>TotalScore</td></tr><tr><td class=idx>0</td><td class=ord>2.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0.154</td></tr><tr><td class=idx>1</td><td class=ord>32.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>17</td><td class=ops>2.135</td></tr><tr><td class=idx>2</td><td class=ord>36.000</td><td class=ops>0</td><td class=ops>25</td><td class=ops>0</td><td class=ops>2.529</td></tr><tr><td class=idx>3</td><td class=ord>4.000</td><td class=ops>14</td><td class=ops>19</td><td class=ops>0</td><td class=ops>0.933</td></tr><tr><td class=idx>4</td><td class=ord>18.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>25</td><td class=ops>1.237</td></tr><tr><td class=idx>5</td><td class=ord>14.000</td><td class=ops>3</td><td class=ops>16</td><td class=ops>0</td><td class=ops>1.500</td></tr><tr><td class=idx>6</td><td class=ord>6.000</td><td class=ops>5</td><td class=ops>16</td><td class=ops>0</td><td class=ops>0.886</td></tr></table><div class=score-break><div>sum(op)=9.3726</div><div>op_penalty: -0.0700</div><div class=sum>final(opscore approx)=9.3026</div></div></details></div>
+<div class=card>
+  <div class="card-head"><span class=score>Score: 0.267</span><span class=ops>Total Ops: 5</span></div>
+  <div class=cov-row><span class=lbl>State 79.41%</span><div class=bar-wrap><div class='bar state' style='width:79.412%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 70.59%</span><div class=bar-wrap><div class='bar sens' style='width:70.588%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 32.35%</span><div class=bar-wrap><div class='bar total' style='width:32.353%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>W1 R0 C(0,0,0) C(1,1,1)</td></tr>
+</table>
+<details><summary>Op Scores (5)</summary><table class=mt><tr><td class=idx>#</td><td class=ord>S_cov</td><td class=ops>D_cov</td><td class=ops>PartM</td><td class=ops>FullM</td><td class=ops>TotalScore</td></tr><tr><td class=idx>0</td><td class=ord>2.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0.154</td></tr><tr><td class=idx>1</td><td class=ord>32.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>17</td><td class=ops>2.135</td></tr><tr><td class=idx>2</td><td class=ord>36.000</td><td class=ops>0</td><td class=ops>25</td><td class=ops>0</td><td class=ops>2.529</td></tr><tr><td class=idx>3</td><td class=ord>7.000</td><td class=ops>3</td><td class=ops>25</td><td class=ops>0</td><td class=ops>0.471</td></tr><tr><td class=idx>4</td><td class=ord>7.000</td><td class=ops>12</td><td class=ops>18</td><td class=ops>0</td><td class=ops>1.122</td></tr></table><div class=score-break><div>sum(op)=6.4109</div><div>op_penalty: -0.0500</div><div class=sum>final(opscore approx)=6.3609</div></div></details></div>
+<div class=card>
+  <div class="card-head"><span class=score>Score: 0.692</span><span class=ops>Total Ops: 5</span></div>
+  <div class=cov-row><span class=lbl>State 88.24%</span><div class=bar-wrap><div class='bar state' style='width:88.235%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 82.35%</span><div class=bar-wrap><div class='bar sens' style='width:82.353%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 29.41%</span><div class=bar-wrap><div class='bar total' style='width:29.412%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>W1 C(1,0,1)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>W0 C(1,1,1)</td></tr>
+</table>
+<details><summary>Op Scores (5)</summary><table class=mt><tr><td class=idx>#</td><td class=ord>S_cov</td><td class=ops>D_cov</td><td class=ops>PartM</td><td class=ops>FullM</td><td class=ops>TotalScore</td></tr><tr><td class=idx>0</td><td class=ord>2.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0.154</td></tr><tr><td class=idx>1</td><td class=ord>30.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>17</td><td class=ops>1.981</td></tr><tr><td class=idx>2</td><td class=ord>32.000</td><td class=ops>3</td><td class=ops>23</td><td class=ops>0</td><td class=ops>2.413</td></tr><tr><td class=idx>3</td><td class=ord>24.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>40</td><td class=ops>1.143</td></tr><tr><td class=idx>4</td><td class=ord>9.000</td><td class=ops>9</td><td class=ops>18</td><td class=ops>0</td><td class=ops>1.102</td></tr></table><div class=score-break><div>sum(op)=6.7930</div><div>op_penalty: -0.0500</div><div class=sum>final(opscore approx)=6.7430</div></div></details></div>
+<div class=card>
+  <div class="card-head"><span class=score>Score: 1.034</span><span class=ops>Total Ops: 6</span></div>
+  <div class=cov-row><span class=lbl>State 82.35%</span><div class=bar-wrap><div class='bar state' style='width:82.353%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 80.88%</span><div class=bar-wrap><div class='bar sens' style='width:80.882%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 29.41%</span><div class=bar-wrap><div class='bar total' style='width:29.412%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>C(0,0,0)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>C(1,1,1)</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Up</td><td class=ops>R0</td></tr>
+  <tr><td class=idx>4</td><td class=ord>Up</td><td class=ops>W1</td></tr>
+  <tr><td class=idx>5</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+</table>
+<details><summary>Op Scores (6)</summary><table class=mt><tr><td class=idx>#</td><td class=ord>S_cov</td><td class=ops>D_cov</td><td class=ops>PartM</td><td class=ops>FullM</td><td class=ops>TotalScore</td></tr><tr><td class=idx>0</td><td class=ord>2.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0.154</td></tr><tr><td class=idx>1</td><td class=ord>21.000</td><td class=ops>4</td><td class=ops>18</td><td class=ops>0</td><td class=ops>1.673</td></tr><tr><td class=idx>2</td><td class=ord>8.000</td><td class=ops>4</td><td class=ops>24</td><td class=ops>0</td><td class=ops>0.667</td></tr><tr><td class=idx>3</td><td class=ord>6.000</td><td class=ops>6</td><td class=ops>24</td><td class=ops>0</td><td class=ops>0.682</td></tr><tr><td class=idx>4</td><td class=ord>12.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>8</td><td class=ops>1.053</td></tr><tr><td class=idx>5</td><td class=ord>40.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>25</td><td class=ops>3.553</td></tr></table><div class=score-break><div>sum(op)=7.7807</div><div>op_penalty: -0.0600</div><div class=sum>final(opscore approx)=7.7207</div></div></details></div>
+<div class=card>
+  <div class="card-head"><span class=score>Score: 0.722</span><span class=ops>Total Ops: 5</span></div>
+  <div class=cov-row><span class=lbl>State 42.65%</span><div class=bar-wrap><div class='bar state' style='width:42.647%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 41.18%</span><div class=bar-wrap><div class='bar sens' style='width:41.176%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 29.41%</span><div class=bar-wrap><div class='bar total' style='width:29.412%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>C(0,0,0)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>C(1,1,1)</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Up</td><td class=ops>R0</td></tr>
+  <tr><td class=idx>4</td><td class=ord>Up</td><td class=ops>W1</td></tr>
+</table>
+<details><summary>Op Scores (5)</summary><table class=mt><tr><td class=idx>#</td><td class=ord>S_cov</td><td class=ops>D_cov</td><td class=ops>PartM</td><td class=ops>FullM</td><td class=ops>TotalScore</td></tr><tr><td class=idx>0</td><td class=ord>2.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0.154</td></tr><tr><td class=idx>1</td><td class=ord>21.000</td><td class=ops>4</td><td class=ops>18</td><td class=ops>0</td><td class=ops>1.673</td></tr><tr><td class=idx>2</td><td class=ord>8.000</td><td class=ops>4</td><td class=ops>24</td><td class=ops>0</td><td class=ops>0.667</td></tr><tr><td class=idx>3</td><td class=ord>6.000</td><td class=ops>6</td><td class=ops>24</td><td class=ops>0</td><td class=ops>0.682</td></tr><tr><td class=idx>4</td><td class=ord>12.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>8</td><td class=ops>1.053</td></tr></table><div class=score-break><div>sum(op)=4.2280</div><div>op_penalty: -0.0500</div><div class=sum>final(opscore approx)=4.1780</div></div></details></div>
+<div class=card>
+  <div class="card-head"><span class=score>Score: 0.724</span><span class=ops>Total Ops: 4</span></div>
+  <div class=cov-row><span class=lbl>State 41.18%</span><div class=bar-wrap><div class='bar state' style='width:41.176%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 29.41%</span><div class=bar-wrap><div class='bar sens' style='width:29.412%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 29.41%</span><div class=bar-wrap><div class='bar total' style='width:29.412%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>C(0,0,0)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>C(1,1,1)</td></tr>
+  <tr><td class=idx>3</td><td class=ord>Up</td><td class=ops>R0</td></tr>
+</table>
+<details><summary>Op Scores (4)</summary><table class=mt><tr><td class=idx>#</td><td class=ord>S_cov</td><td class=ops>D_cov</td><td class=ops>PartM</td><td class=ops>FullM</td><td class=ops>TotalScore</td></tr><tr><td class=idx>0</td><td class=ord>2.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0.154</td></tr><tr><td class=idx>1</td><td class=ord>21.000</td><td class=ops>4</td><td class=ops>18</td><td class=ops>0</td><td class=ops>1.673</td></tr><tr><td class=idx>2</td><td class=ord>8.000</td><td class=ops>4</td><td class=ops>24</td><td class=ops>0</td><td class=ops>0.667</td></tr><tr><td class=idx>3</td><td class=ord>6.000</td><td class=ops>6</td><td class=ops>24</td><td class=ops>0</td><td class=ops>0.682</td></tr></table><div class=score-break><div>sum(op)=3.1754</div><div>op_penalty: -0.0400</div><div class=sum>final(opscore approx)=3.1354</div></div></details></div>
+<div class=card>
+  <div class="card-head"><span class=score>Score: 0.371</span><span class=ops>Total Ops: 4</span></div>
+  <div class=cov-row><span class=lbl>State 75%</span><div class=bar-wrap><div class='bar state' style='width:75.000%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 66.18%</span><div class=bar-wrap><div class='bar sens' style='width:66.176%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 27.94%</span><div class=bar-wrap><div class='bar total' style='width:27.941%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>W1 R0 C(1,1,1)</td></tr>
+</table>
+<details><summary>Op Scores (4)</summary><table class=mt><tr><td class=idx>#</td><td class=ord>S_cov</td><td class=ops>D_cov</td><td class=ops>PartM</td><td class=ops>FullM</td><td class=ops>TotalScore</td></tr><tr><td class=idx>0</td><td class=ord>2.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0.154</td></tr><tr><td class=idx>1</td><td class=ord>32.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>17</td><td class=ops>2.135</td></tr><tr><td class=idx>2</td><td class=ord>36.000</td><td class=ops>0</td><td class=ops>25</td><td class=ops>0</td><td class=ops>2.529</td></tr><tr><td class=idx>3</td><td class=ord>4.000</td><td class=ops>14</td><td class=ops>19</td><td class=ops>0</td><td class=ops>0.933</td></tr></table><div class=score-break><div>sum(op)=5.7500</div><div>op_penalty: -0.0400</div><div class=sum>final(opscore approx)=5.7100</div></div></details></div>
+<div class=card>
+  <div class="card-head"><span class=score>Score: 0.790</span><span class=ops>Total Ops: 3</span></div>
+  <div class=cov-row><span class=lbl>State 41.18%</span><div class=bar-wrap><div class='bar state' style='width:41.176%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 29.41%</span><div class=bar-wrap><div class='bar sens' style='width:29.412%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 17.65%</span><div class=bar-wrap><div class='bar total' style='width:17.647%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>C(0,0,0)</td></tr>
+  <tr><td class=idx>2</td><td class=ord>Up</td><td class=ops>C(1,1,1)</td></tr>
+</table>
+<details><summary>Op Scores (3)</summary><table class=mt><tr><td class=idx>#</td><td class=ord>S_cov</td><td class=ops>D_cov</td><td class=ops>PartM</td><td class=ops>FullM</td><td class=ops>TotalScore</td></tr><tr><td class=idx>0</td><td class=ord>2.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0.154</td></tr><tr><td class=idx>1</td><td class=ord>21.000</td><td class=ops>4</td><td class=ops>18</td><td class=ops>0</td><td class=ops>1.673</td></tr><tr><td class=idx>2</td><td class=ord>8.000</td><td class=ops>4</td><td class=ops>24</td><td class=ops>0</td><td class=ops>0.667</td></tr></table><div class=score-break><div>sum(op)=2.4936</div><div>op_penalty: -0.0300</div><div class=sum>final(opscore approx)=2.4636</div></div></details></div>
+<div class=card>
+  <div class="card-head"><span class=score>Score: 0.893</span><span class=ops>Total Ops: 2</span></div>
+  <div class=cov-row><span class=lbl>State 32.35%</span><div class=bar-wrap><div class='bar state' style='width:32.353%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 26.47%</span><div class=bar-wrap><div class='bar sens' style='width:26.471%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 8.82%</span><div class=bar-wrap><div class='bar total' style='width:8.824%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>C(0,0,0)</td></tr>
+</table>
+<details><summary>Op Scores (2)</summary><table class=mt><tr><td class=idx>#</td><td class=ord>S_cov</td><td class=ops>D_cov</td><td class=ops>PartM</td><td class=ops>FullM</td><td class=ops>TotalScore</td></tr><tr><td class=idx>0</td><td class=ord>2.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0.154</td></tr><tr><td class=idx>1</td><td class=ord>21.000</td><td class=ops>4</td><td class=ops>18</td><td class=ops>0</td><td class=ops>1.673</td></tr></table><div class=score-break><div>sum(op)=1.8269</div><div>op_penalty: -0.0200</div><div class=sum>final(opscore approx)=1.8069</div></div></details></div>
+<div class=card>
+  <div class="card-head"><span class=score>Score: 0.539</span><span class=ops>Total Ops: 3</span></div>
+  <div class=cov-row><span class=lbl>State 73.53%</span><div class=bar-wrap><div class='bar state' style='width:73.529%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 64.71%</span><div class=bar-wrap><div class='bar sens' style='width:64.706%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 8.82%</span><div class=bar-wrap><div class='bar total' style='width:8.824%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+  <tr><td class=idx>1</td><td class=ord>Up</td><td class=ops>W1 C(1,0,1)</td></tr>
+</table>
+<details><summary>Op Scores (3)</summary><table class=mt><tr><td class=idx>#</td><td class=ord>S_cov</td><td class=ops>D_cov</td><td class=ops>PartM</td><td class=ops>FullM</td><td class=ops>TotalScore</td></tr><tr><td class=idx>0</td><td class=ord>2.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0.154</td></tr><tr><td class=idx>1</td><td class=ord>30.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>17</td><td class=ops>1.981</td></tr><tr><td class=idx>2</td><td class=ord>32.000</td><td class=ops>3</td><td class=ops>23</td><td class=ops>0</td><td class=ops>2.413</td></tr></table><div class=score-break><div>sum(op)=4.5481</div><div>op_penalty: -0.0300</div><div class=sum>final(opscore approx)=4.5181</div></div></details></div>
+<div class=card>
+  <div class="card-head"><span class=score>Score: -0.002</span><span class=ops>Total Ops: 1</span></div>
+  <div class=cov-row><span class=lbl>State 2.94%</span><div class=bar-wrap><div class='bar state' style='width:2.941%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 2.94%</span><div class=bar-wrap><div class='bar sens' style='width:2.941%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 0%</span><div class=bar-wrap><div class='bar total' style='width:0.000%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+</table>
+<details><summary>Op Scores (1)</summary><table class=mt><tr><td class=idx>#</td><td class=ord>S_cov</td><td class=ops>D_cov</td><td class=ops>PartM</td><td class=ops>FullM</td><td class=ops>TotalScore</td></tr><tr><td class=idx>0</td><td class=ord>2.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0.154</td></tr></table><div class=score-break><div>sum(op)=0.1538</div><div>op_penalty: -0.0100</div><div class=sum>final(opscore approx)=0.1438</div></div></details></div>
+<div class=card>
+  <div class="card-head"><span class=score>Score: 0.002</span><span class=ops>Total Ops: 1</span></div>
+  <div class=cov-row><span class=lbl>State 2.94%</span><div class=bar-wrap><div class='bar state' style='width:2.941%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 2.94%</span><div class=bar-wrap><div class='bar sens' style='width:2.941%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 0%</span><div class=bar-wrap><div class='bar total' style='width:0.000%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+</table>
+<details><summary>Op Scores (1)</summary><table class=mt><tr><td class=idx>#</td><td class=ord>S_cov</td><td class=ops>D_cov</td><td class=ops>PartM</td><td class=ops>FullM</td><td class=ops>TotalScore</td></tr><tr><td class=idx>0</td><td class=ord>2.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0.154</td></tr></table><div class=score-break><div>sum(op)=0.1538</div><div>op_penalty: -0.0100</div><div class=sum>final(opscore approx)=0.1438</div></div></details></div>
+<div class=card>
+  <div class="card-head"><span class=score>Score: 0.012</span><span class=ops>Total Ops: 1</span></div>
+  <div class=cov-row><span class=lbl>State 2.94%</span><div class=bar-wrap><div class='bar state' style='width:2.941%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 2.94%</span><div class=bar-wrap><div class='bar sens' style='width:2.941%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 0%</span><div class=bar-wrap><div class='bar total' style='width:0.000%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+</table>
+<details><summary>Op Scores (1)</summary><table class=mt><tr><td class=idx>#</td><td class=ord>S_cov</td><td class=ops>D_cov</td><td class=ops>PartM</td><td class=ops>FullM</td><td class=ops>TotalScore</td></tr><tr><td class=idx>0</td><td class=ord>2.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0.154</td></tr></table><div class=score-break><div>sum(op)=0.1538</div><div>op_penalty: -0.0100</div><div class=sum>final(opscore approx)=0.1438</div></div></details></div>
+<div class=card>
+  <div class="card-head"><span class=score>Score: 0.144</span><span class=ops>Total Ops: 1</span></div>
+  <div class=cov-row><span class=lbl>State 2.94%</span><div class=bar-wrap><div class='bar state' style='width:2.941%'></div></div></div>
+  <div class=cov-row><span class=lbl>Sens 2.94%</span><div class=bar-wrap><div class='bar sens' style='width:2.941%'></div></div></div>
+  <div class=cov-row><span class=lbl>Total 0%</span><div class=bar-wrap><div class='bar total' style='width:0.000%'></div></div></div>
+<table class=mt>
+  <tr><td class=idx>0</td><td class=ord>Up</td><td class=ops>W0</td></tr>
+</table>
+<details><summary>Op Scores (1)</summary><table class=mt><tr><td class=idx>#</td><td class=ord>S_cov</td><td class=ops>D_cov</td><td class=ops>PartM</td><td class=ops>FullM</td><td class=ops>TotalScore</td></tr><tr><td class=idx>0</td><td class=ord>2.000</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0</td><td class=ops>0.154</td></tr></table><div class=score-break><div>sum(op)=0.1538</div><div>op_penalty: -0.0100</div><div class=sum>final(opscore approx)=0.1438</div></div></details></div>
+</div><div class=footer>Generated by Template Search Engine</div></body></html>

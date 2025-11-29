@@ -14,5 +14,9 @@
   {
     "March_test": "LookaheadSynth_98",
     "Pattern": "b(W0); a(W1, C(0)(1)(0), W0, C(1)(1)(1)); a(R0, W0, R0, W0); d(C(0)(0)(0)); d(W1, C(0)(0)(1), R1); a(C(0)(1)(0)); a(C(1)(1)(1), W0, C(0)(0)(0), R0); a(W1, R0); d(R1, W0)"
+  },
+  {
+    "March_test": "March MSS",
+    "Pattern": "b(W0); a(R0, R0, W1, W1); a(R1, R1, W0, W0); d(R0, R0, W1, W1); d(R1, R1, W0, W0); b(R0)"
   }
 ]

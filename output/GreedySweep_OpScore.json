@@ -1,0 +1,98 @@
+[
+  {
+    "March_test": "Best_ops3_elems6",
+    "Pattern": "a(W0); a(W1, C(1)(0)(1)); a(W0, C(0)(0)(1)); a(W1, C(1)(1)(1)); d(W0, C(1)(0)(0));"
+  },
+  {
+    "March_test": "Best_ops2_elems5",
+    "Pattern": "a(W0); a(W1, C(1)(0)(1)); a(W0, C(0)(0)(1)); a(W1, C(1)(1)(1)); d(W0, C(1)(0)(0));"
+  },
+  {
+    "March_test": "Best_ops2_elems6",
+    "Pattern": "a(W0); a(W1, C(1)(0)(1)); a(W0, C(0)(0)(1)); a(W1, C(1)(1)(1)); d(W0, C(1)(0)(0));"
+  },
+  {
+    "March_test": "Best_ops2_elems4",
+    "Pattern": "a(W0); a(W1, C(1)(0)(1)); a(W0, C(0)(0)(1)); a(W1, C(1)(1)(1));"
+  },
+  {
+    "March_test": "Best_ops3_elems5",
+    "Pattern": "a(W0); a(W1, R0, C(1)(1)(1)); a(W0, C(0)(0)(0));"
+  },
+  {
+    "March_test": "Best_ops3_elems4",
+    "Pattern": "a(W0); a(W1, R0, C(1)(1)(1)); a(W0, C(0)(0)(0));"
+  },
+  {
+    "March_test": "Best_ops3_elems3",
+    "Pattern": "a(W0); a(W1, R0, C(1)(1)(1)); a(W0, C(0)(0)(0));"
+  },
+  {
+    "March_test": "Best_ops3_elems2",
+    "Pattern": "a(W0); a(W1, R0, C(1)(1)(1));"
+  },
+  {
+    "March_test": "Best_ops1_elems5",
+    "Pattern": "a(W0); a(W1); a(W0); a(C(0)(0)(0)); a(C(1)(1)(1));"
+  },
+  {
+    "March_test": "Best_ops1_elems6",
+    "Pattern": "a(W0); a(W1); a(W0); a(C(0)(0)(0)); a(C(1)(1)(1)); a(W1);"
+  },
+  {
+    "March_test": "Best_ops4_elems6",
+    "Pattern": "a(W0); a(W1, C(1)(0)(1)); a(W0, C(0)(0)(1));"
+  },
+  {
+    "March_test": "Best_ops4_elems3",
+    "Pattern": "a(W0); a(W1, C(1)(0)(1)); a(W0, C(0)(0)(1));"
+  },
+  {
+    "March_test": "Best_ops2_elems3",
+    "Pattern": "a(W0); a(W1, C(1)(0)(1)); a(W0, C(0)(0)(1));"
+  },
+  {
+    "March_test": "Best_ops4_elems4",
+    "Pattern": "a(W0); a(W1, C(1)(0)(1)); a(W0, C(0)(0)(1));"
+  },
+  {
+    "March_test": "Best_ops4_elems5",
+    "Pattern": "a(W0); a(W1, C(1)(0)(1)); a(W0, C(0)(0)(1));"
+  },
+  {
+    "March_test": "Best_ops2_elems2",
+    "Pattern": "a(W0); a(W1, C(1)(0)(1));"
+  },
+  {
+    "March_test": "Best_ops1_elems4",
+    "Pattern": "a(W0); a(W1); a(W0); a(C(0)(0)(0));"
+  },
+  {
+    "March_test": "Best_ops4_elems2",
+    "Pattern": "a(W0); a(W1, C(1)(0)(1));"
+  },
+  {
+    "March_test": "Best_ops3_elems1",
+    "Pattern": "a(W0);"
+  },
+  {
+    "March_test": "Best_ops4_elems1",
+    "Pattern": "a(W0);"
+  },
+  {
+    "March_test": "Best_ops1_elems1",
+    "Pattern": "a(W0);"
+  },
+  {
+    "March_test": "Best_ops2_elems1",
+    "Pattern": "a(W0);"
+  },
+  {
+    "March_test": "Best_ops1_elems3",
+    "Pattern": "a(W0); a(W1); a(W0);"
+  },
+  {
+    "March_test": "Best_ops1_elems2",
+    "Pattern": "a(W0); a(W1);"
+  }
+]
