@@ -95,10 +95,11 @@ static void write_fp_brief(std::ostream& os, const FPExpr& fp){
     os << "</ul>";
 }
 
-int main(){
+int main(int argc, char** argv){
     try{
+        std::string faults_path = (argc > 1) ? argv[1] : "input/S_C_faults.json";
         FaultsJsonParser parser; FaultNormalizer norm; TPGenerator gen;
-        auto raws = parser.parse_file("0916Cross_shape/faults.json");
+        auto raws = parser.parse_file(faults_path);
 
         // Normalize and precompute counts
         vector<Fault> faults; faults.reserve(raws.size());
@@ -117,7 +118,32 @@ int main(){
     std::ofstream ofs("output/TP_Report.html");
     ofs << "<!DOCTYPE html><html><head><meta charset=\"utf-8\">";
         ofs << "<title>TP Report</title>";
-    ofs << "<style>body{font-family:sans-serif;line-height:1.4} details{margin:12px 0} summary{cursor:pointer;font-weight:600} table{border-collapse:collapse;margin:6px 0} th,td{border:1px solid #ccc;padding:4px 8px;text-align:center} .dc td{min-width:60px} .filters{position:sticky;top:0;background:#fff;padding:8px;border-bottom:1px solid #ddd} .muted{color:#666} .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:8px} .overview table{width:100%} .badge{display:inline-block;background:#eef;border:1px solid #99c;border-radius:10px;padding:2px 8px;margin-left:6px;font-size:12px} .detector{margin:4px 0 10px 18px} .fp{margin:4px 0 10px 18px} .tpTable{width:100%;font-size:13px} .tpTable th{background:#eef2f7} .tpTable tbody tr:nth-child(even){background:#f6f8fb} .tpTable tbody tr:hover{background:#e8f0ff} .tpTable td.ops{text-align:left;white-space:nowrap} .tpTable td.det{text-align:left} .tpTable td.state{font-family:monospace}</style>";
+    ofs << "<style>"
+           ":root { --bg:#111; --panel:#1e1e1e; --border:#333; --accent:#4ea3ff; --accent2:#ff9f43; --font:#eaeaea; --muted:#999; --state:#4caf50; --sens:#ff9800; --total:#2196f3; --hover:#2a2a2a; }"
+           "body { background:var(--bg); color:var(--font); font-family:Inter,Segoe UI,system-ui,sans-serif; margin:32px; line-height:1.4; }"
+           "h1 { font-size:28px; margin:0 0 12px; font-weight:600; }"
+           "h3 { font-size:16px; margin:16px 0 8px; color:var(--accent); }"
+           "details { margin:12px 0; background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:8px 12px; }"
+           "summary { cursor:pointer; font-weight:600; outline:none; }"
+           "table { border-collapse:collapse; margin:6px 0; width:100%; font-size:13px; }"
+           "th, td { border:1px solid var(--border); padding:6px 10px; text-align:center; }"
+           "th { background:#252525; color:var(--muted); font-weight:600; }"
+           ".filters { position:sticky; top:0; background:var(--panel); padding:12px; border-bottom:1px solid var(--border); z-index:100; display:flex; gap:16px; align-items:center; border-radius:0 0 8px 8px; margin:-32px -32px 20px; padding:16px 32px; box-shadow:0 4px 12px rgba(0,0,0,0.3); }"
+           ".filters label { font-size:13px; color:var(--muted); font-weight:500; display:flex; align-items:center; gap:6px; }"
+           "select, input { background:#111; border:1px solid var(--border); color:var(--font); padding:4px 8px; border-radius:4px; outline:none; }"
+           "select:focus, input:focus { border-color:var(--accent); }"
+           ".muted { color:var(--muted); }"
+           ".grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:16px; margin-bottom:24px; }"
+           ".overview table { width:100%; }"
+           ".badge { display:inline-block; background:rgba(78, 163, 255, 0.15); border:1px solid rgba(78, 163, 255, 0.3); color:var(--accent); border-radius:10px; padding:2px 8px; margin-left:6px; font-size:11px; }"
+           ".detector, .fp { margin:4px 0 10px 18px; font-size:13px; }"
+           ".fp li { margin-bottom:2px; }"
+           ".tpTable tbody tr:nth-child(even) { background:#222; }"
+           ".tpTable tbody tr:hover { background:var(--hover); }"
+           ".tpTable td.ops { text-align:left; white-space:nowrap; font-family:monospace; color:var(--accent2); }"
+           ".tpTable td.det { text-align:left; }"
+           ".tpTable td.state { font-family:monospace; color:var(--state); }"
+           "</style>";
         ofs << "</head><body>";
 
         // Filters
@@ -125,10 +151,10 @@ int main(){
         ofs << "<label>Category: <select id=\"fCat\"><option value=\"\">(All)</option>";
         for (const auto& c : catSet) ofs << "<option>"<<html_escape(c)<<"</option>";
         ofs << "</select></label>\n";
-        ofs << "<label style=\"margin-left:12px\">Scope: <select id=\"fScope\"><option value=\"\">(All)</option>";
+        ofs << "<label>Scope: <select id=\"fScope\"><option value=\"\">(All)</option>";
         for (const auto& s : scopeSet) ofs << "<option>"<<html_escape(s)<<"</option>";
         ofs << "</select></label>\n";
-        ofs << "<label style=\"margin-left:12px\">Fault ID: <input id=\"fId\" placeholder=\"contains...\"/></label>";
+        ofs << "<label>Fault ID: <input id=\"fId\" placeholder=\"contains...\"/></label>";
         ofs << "</div>";
 
         // Overview

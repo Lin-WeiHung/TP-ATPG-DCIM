@@ -14,6 +14,7 @@
 #include <nlohmann/json.hpp>
 
 #include "TemplateSearchers.hpp" // for CandidateResult, MarchTest, etc.
+#include "FaultSimulator.hpp" // for OpScorer & ScoreWeights
 
 using css::template_search::CandidateResult; // other types (MarchTest, Op, etc.) assumed available globally from included headers
 
@@ -58,6 +59,34 @@ public:
         ofs << "</div>";
         write_html_end(ofs);
         return true;
+    }
+
+    // Extended: generate HTML with per-op scores (OpScorer). Each candidate gets a dropdown listing ops.
+    // If use_opscore=false, op-level scores still computed with provided weights (default or user) for inspection.
+    void gen_html_with_op_scores(const std::vector<CandidateResult>& results,
+                                 const std::string& out_path,
+                                 const ScoreWeights& weights,
+                                 double op_penalty,
+                                 bool use_opscore,
+                                 const std::vector<TestPrimitive>& tps) const {
+        std::ofstream ofs(out_path);
+        if(!ofs.is_open()){
+            std::cerr << "[HTML] Failed to open output: " << out_path << std::endl;
+            return;
+        }
+        write_html_start(ofs, "Greedy Sweep Report (Op Scores)");
+        ofs << "<div class=meta>";
+        ofs << "<div class=metric><div class=lbl>Items</div><div class=val>"<< results.size() <<"</div></div>";
+        ofs << "<div class=metric><div class=lbl>Weights</div><div class=val>"<< "aState="<<weights.alpha_state<<" aSens="<<weights.alpha_sens<<" bD="<<weights.beta_D<<" gMP="<<weights.gamma_MPart<<" lMA="<<weights.lambda_MAll<<" pen="<<op_penalty<<"" <<"</div></div>";
+        ofs << "<div class=metric><div class=lbl>Mode</div><div class=val>"<<(use_opscore?"OpScorer":"Coverage")<<"</div></div>";
+        ofs << "</div>";
+        ofs << "<h2>Configurations</h2><div class=cards>";
+        OpScorer base_scorer; base_scorer.set_weights(weights); base_scorer.set_group_index(tps);
+        for(const auto& cr : results){
+            ofs << render_candidate_card_with_ops(cr, base_scorer, op_penalty, use_opscore);
+        }
+        ofs << "</div>";
+        write_html_end(ofs);
     }
 
 private:
@@ -234,6 +263,48 @@ private:
         ss << "  </div>\n";
 
         ss << render_march_test_html(cr.march_test);
+        ss << "</div>\n";
+        return ss.str();
+    }
+
+    // Op-score enriched card (adds dropdown with per-op scores via OpScorer)
+    static std::string render_candidate_card_with_ops(const CandidateResult& cr,
+                                                      OpScorer& scorer,
+                                                      double op_penalty,
+                                                      bool use_opscore){
+        std::ostringstream ss;
+        std::size_t ops_count = 0; for(const auto& e: cr.march_test.elements) ops_count += e.ops.size();
+        double state_cov = cr.sim_result.state_coverage;
+        double sens_cov  = cr.sim_result.sens_coverage;
+        double total_cov = cr.sim_result.total_coverage;
+        auto pct = [](double v){ return (v*100.0); };
+        ss << "<div class=card>\n";
+        ss << "  <div class=\"card-head\">";
+        ss << "<span class=score>Score: "<< std::fixed << std::setprecision(3) << cr.score << "</span>";
+        ss << "<span class=ops>Total Ops: "<< ops_count << "</span>";
+        ss << "</div>\n";
+        auto bar = [&](const char* label, const char* cls, double value){
+            ss << "  <div class=cov-row><span class=lbl>"<<label<<" "<< fmt_percent_fraction(value) <<"%</span><div class=bar-wrap><div class='bar "<<cls<<"' style='width:"<< std::min(100.0, pct(value)) <<"%'></div></div></div>\n";
+        };
+        bar("State", "state", state_cov);
+        bar("Sens",  "sens",  sens_cov);
+        bar("Total", "total", total_cov);
+        ss << render_march_test_html(cr.march_test);
+        // Per-op scoring using preconfigured OpScorer (group index + weights already set)
+        auto outcomes = scorer.score_ops(cr.sim_result.cover_lists);
+        ss << "<details><summary>Op Scores ("<< outcomes.size() <<")</summary>";
+        ss << "<table class=mt>";
+        ss << "<tr><td class=idx>#</td><td class=ord>State_cov</td><td class=ops>Sens_cov</td><td class=ops>D_cov</td><td class=ops>PartM</td><td class=ops>FullM</td><td class=ops>TotalScore</td></tr>";
+        for(std::size_t i=0;i<outcomes.size();++i){
+            const auto& o = outcomes[i];
+            ss << "<tr><td class=idx>"<< i <<"</td><td class=ord>"<< std::setprecision(3) << o.state_cov <<"</td><td class=ops>"<< std::setprecision(3) << o.sens_cov <<"</td><td class=ops>"<< o.D_cov <<"</td><td class=ops>"<< o.part_M_num <<"</td><td class=ops>"<< o.full_M_num <<"</td><td class=ops>"<< std::setprecision(3) << o.total_score <<"</td></tr>";
+        }
+        double sum_score = 0.0; for(const auto& o: outcomes) sum_score += o.total_score; double penalized = sum_score - op_penalty*ops_count;
+        ss << "</table><div class=score-break>";
+        ss << "<div>sum(op)="<< std::setprecision(4) << sum_score <<"</div>";
+        ss << "<div>op_penalty: -"<< op_penalty*ops_count <<"</div>";
+        ss << "<div class=sum>final(opscore approx)="<< std::setprecision(4) << penalized <<"</div>";
+        ss << "</div></details>";
         ss << "</div>\n";
         return ss.str();
     }

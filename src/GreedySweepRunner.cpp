@@ -32,8 +32,12 @@ static std::vector<TestPrimitive> gen_tps(const std::vector<Fault>& faults){
 
 int main(int argc, char** argv){
     if (argc < 3) {
-        std::cerr << "Usage: " << (argc>0?argv[0]:"greedy_sweep")
-                  << " <max_ops_per_element> <max_elements> [faults.json] [output.json] [output.html]\n";
+        std::cerr << "Usage: " << (argc>0?argv[0]:"greedy_sweep") << " <max_ops_per_element> <max_elements>"
+#ifdef USE_OP_SCORER
+                  << " [faults.json] [output.json] [output.html] [--opscore alpha_S beta_D gamma_MPart lambda_MAll op_penalty]\n";
+#else
+                  << " [faults.json] [output.json] [output.html]\n";
+#endif
         return 2;
     }
     std::size_t max_ops = static_cast<std::size_t>(std::stoull(argv[1]));
@@ -41,6 +45,26 @@ int main(int argc, char** argv){
     std::string faults_path = (argc > 3) ? argv[3] : std::string("input/S_C_faults.json");
     std::string out_json = (argc > 4) ? argv[4] : std::string("output/GreedySweep_Bests.json");
     std::string out_html = (argc > 5) ? argv[5] : std::string("output/GreedySweep_Bests.html");
+
+    int argi = 6;
+    bool use_opscore = false;
+    ScoreWeights sw; // defaults
+    double op_penalty = 0.0; // default no penalty
+#ifdef USE_OP_SCORER
+    if (argc > argi && std::string(argv[argi]) == "--opscore") {
+        if (argc < argi + 7) {
+            std::cerr << "[Error] --opscore requires 6 numeric params: alpha_state alpha_sens beta_D gamma_MPart lambda_MAll op_penalty\n";
+            return 3;
+        }
+        use_opscore = true;
+        sw.alpha_state = std::stod(argv[argi+1]);
+        sw.alpha_sens  = std::stod(argv[argi+2]);
+        sw.beta_D      = std::stod(argv[argi+3]);
+        sw.gamma_MPart = std::stod(argv[argi+4]);
+        sw.lambda_MAll = std::stod(argv[argi+5]);
+        op_penalty     = std::stod(argv[argi+6]);
+    }
+#endif
 
     // Load faults & tps
     auto faults = load_faults(faults_path);
@@ -64,10 +88,31 @@ int main(int argc, char** argv){
 
         for (std::size_t L = 1; L <= max_elements; ++L) {
             std::cout << "  [Greedy] L=" << L << std::endl;
+            css::template_search::ScoreFunc scorer;
+#ifdef USE_OP_SCORER
+            if (use_opscore) {
+                // OpScorer-based scoring: sum(op_score_outcomes.total_score) - op_penalty * total_ops
+                // Build a shared OpScorer with TP grouping once
+                static OpScorer op_scorer; // reused across candidates
+                op_scorer.set_group_index(tps);
+                op_scorer.set_weights(sw);
+                scorer = [&, op_penalty](const SimulationResult& sim_res, const MarchTest& mt){
+                    auto outcomes = op_scorer.score_ops(sim_res.cover_lists);
+                    double sum = 0.0; for (const auto& o : outcomes) sum += o.total_score;
+                    std::size_t ops_count = 0; for (const auto& e : mt.elements) ops_count += e.ops.size();
+                    return sum - op_penalty * static_cast<double>(ops_count);
+                };
+            } else {
+                scorer = css::template_search::make_score_state_total_ops(0.9, 0.5, 0.01);
+            }
+#else
+            scorer = css::template_search::make_score_state_total_ops(0.9, 0.5, 0.01);
+#endif
+
             GreedyTemplateSearcher searcher(
                 sim, lib, faults, tps,
                 std::make_unique<ValueExpandingGenerator>(),
-                css::template_search::make_score_state_total_ops(0.9, 0.5, 0.01),
+                scorer,
                 &constraints
             );
             auto t0 = std::chrono::steady_clock::now();
@@ -130,11 +175,24 @@ int main(int argc, char** argv){
         else { std::cerr << "[Sweep] Failed to write JSON: "<< out_json << "\n"; }
     }
 
-    // 2) Render HTML via gen_html_from_march_json using already simulated results
+    // 2) Render HTML with per-op scores dropdown
     TemplateSearchReport report;
-    report.gen_html_from_march_json(std::filesystem::path(out_json).filename().string(), per_cfg_bests, out_html);
+#ifdef USE_OP_SCORER
+    report.gen_html_with_op_scores(per_cfg_bests, out_html, sw, op_penalty, use_opscore, tps);
+#else
+    // use default weights matching earlier scorer
+    ScoreWeights default_w; // defaults already set in struct
+    report.gen_html_with_op_scores(per_cfg_bests, out_html, default_w, 0.0, false, tps);
+#endif
 
     std::cout << "[Sweep] Done. Items=" << per_cfg_bests.size() << "\n";
+#ifdef USE_OP_SCORER
+    if (use_opscore) {
+        std::cout << "[Sweep] OpScorer weights: alpha_state="<<sw.alpha_state<<" alpha_sens="<<sw.alpha_sens
+                  <<" beta_D="<<sw.beta_D<<" gamma_MPart="<<sw.gamma_MPart<<" lambda_MAll="<<sw.lambda_MAll
+                  <<" op_penalty="<<op_penalty<<"\n";
+    }
+#endif
     std::cout << "[Sweep] Total elapsed=" << sweep_ms << " ms, greedy time=" << total_greedy_ms << " ms\n";
     std::cout << "[Sweep] HTML written: " << out_html << std::endl;
     return 0;
