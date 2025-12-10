@@ -1,5 +1,6 @@
 // g++ -std=c++20 -O2 -Wall -Wextra -Iinclude src/FaultSimulationEvent.cpp -o build/FaultSimulationEvent
 // ./build/FaultSimulationEvent input/S_C_faults.json input/MarchTest.json output/March_Sim_Report_event.html
+// g++ -std=c++20 -O2 -Wall -Wextra -Iinclude src/FaultSimulationEvent.cpp -o build/FaultSimulationEvent && ./build/FaultSimulationEvent input/S_C_faults.json input/MarchTest.json output/March_Sim_Report_event.html
 
 #include <iostream>
 #include <fstream>
@@ -427,8 +428,29 @@ int main(int argc, char** argv){
 
         FaultSimulatorEvent simulator; // new encapsulated event simulator from header
         auto t3s=clock::now(); long long per_tests_sum_us=0;
-        for (size_t mi=0; mi<marchTests.size(); ++mi){ const auto& mt = marchTests[mi]; auto tms=clock::now();
-            auto sim = simulator.simulate(mt, faults, all_tps); auto tme=clock::now(); auto us = to_us(tme-tms); per_tests_sum_us += us;
+        
+        // First pass: simulate all tests and collect results
+        struct MarchResult {
+            size_t original_idx;
+            const MarchTest* mt;
+            SimulationEventResult sim;
+            long long us;
+            double avg_detect;
+            double avg_single;
+            double avg_two;
+            size_t count_single;
+            size_t count_two;
+        };
+        vector<MarchResult> results;
+        results.reserve(marchTests.size());
+        
+        for (size_t mi=0; mi<marchTests.size(); ++mi){ 
+            const auto& mt = marchTests[mi]; 
+            auto tms=clock::now();
+            auto sim = simulator.simulate(mt, faults, all_tps); 
+            auto tme=clock::now(); 
+            auto us = to_us(tme-tms); 
+            per_tests_sum_us += us;
             
             // --- Coverage Calculation ---
             unordered_set<size_t> detected_tp_set;
@@ -459,6 +481,27 @@ int main(int argc, char** argv){
             double avg_detect = faults.empty()? 0.0 : (sum_fault_cov / (double)faults.size());
             double avg_single = count_single? (sum_single_cov / (double)count_single) : 0.0;
             double avg_two = count_two? (sum_two_cov / (double)count_two) : 0.0;
+            
+            results.push_back({mi, &mt, std::move(sim), us, avg_detect, avg_single, avg_two, count_single, count_two});
+            cout << "[時間] 3) 模擬+輸出 March Test '"<< mt.name <<"': "<< us <<" us (ops="<< sim.op_table.size() <<", cov="<< std::fixed << std::setprecision(2) << (avg_detect*100.0) <<"%)\n";
+        }
+        
+        // Sort by total coverage (descending)
+        std::sort(results.begin(), results.end(), [](const MarchResult& a, const MarchResult& b){
+            return a.avg_detect > b.avg_detect;
+        });
+        
+        // Second pass: write HTML in sorted order
+        for (size_t mi=0; mi<results.size(); ++mi){ 
+            const auto& result = results[mi];
+            const auto& mt = *result.mt;
+            const auto& sim = result.sim;
+            auto us = result.us;
+            double avg_detect = result.avg_detect;
+            double avg_single = result.avg_single;
+            double avg_two = result.avg_two;
+            size_t count_single = result.count_single;
+            size_t count_two = result.count_two;
 
             // --- Event Bucketing by Op ---
             struct OpEvt { size_t eid; const char* type; };
@@ -625,7 +668,6 @@ int main(int argc, char** argv){
             ofs << "  </div>\n"; // end fa-panel
 
             ofs << "</div>\n"; // end march-section
-            cout << "[時間] 3) 模擬+輸出 March Test '"<< mt.name <<"': "<< us <<" us (ops="<< sim.op_table.size() <<")\n";
         }
         auto t3e=clock::now(); cout << "[時間] 3) 執行時間(包含撰寫報告)總耗時: "<< to_us(t3e-t3s) <<" us (單測累計="<< per_tests_sum_us <<" us)\n";
         ofs << "</body></html>\n"; ofs.close();

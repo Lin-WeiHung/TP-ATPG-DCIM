@@ -550,7 +550,7 @@ enum class WhoIsPivot { Victim, Aggressor };
 enum class DetectKind { Read, ComputeAnd };
 enum class Slot { A0, A1, A2, A3, A4 };
 
-// === 五欄 cross-shape：{左, 上, 中(pivot), 下, 右} 的 D/C
+// === 五欄 cross-shape：{上, 左, 中(pivot), 右, 下} 的 D/C
 struct DC { Val D{Val::X}; Val C{Val::X}; };
 
 struct CrossState {
@@ -888,6 +888,20 @@ inline vector<Op> StateAssembler::ops_before_detect(const FPExpr& fp, Category c
         };
         erase_compute(out);
     }
+    // if (category == Category::MustCompute) {
+    // auto erase_last_compute = [](vector<Op>& v) {
+    //         // 從尾端向前搜尋第一個遇到的 ComputeAnd
+    //         for (auto it = v.rbegin(); it != v.rend(); ++it) {
+    //             if (it->kind == OpKind::ComputeAnd) {
+    //                 // 轉換 reverse_iterator 為 base iterator 並刪除
+    //                 // base() 指向 it 下一個元素，所以要減 1 才是 it 指向的元素
+    //                 v.erase(std::next(it).base()); 
+    //                 break; // 只刪除最後一個，任務完成即跳出
+    //             }
+    //         }
+    //     };
+    //     erase_last_compute(out);
+    // }
     return out;
 }
 
