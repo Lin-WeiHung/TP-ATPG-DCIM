@@ -1,4 +1,0 @@
-/home/bb232399/CIM/ATPG/qt_faultsim/build/CMakeFiles/faultsim_gui.dir
-/home/bb232399/CIM/ATPG/qt_faultsim/build/CMakeFiles/edit_cache.dir
-/home/bb232399/CIM/ATPG/qt_faultsim/build/CMakeFiles/rebuild_cache.dir
-/home/bb232399/CIM/ATPG/qt_faultsim/build/CMakeFiles/faultsim_gui_autogen.dir

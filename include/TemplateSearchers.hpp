@@ -342,16 +342,16 @@ inline ScoreFunc make_score_state_total_ops(double w_state, double w_total, doub
     };
 }
 
-inline ScoreFunc make_score_state_total_ops_mask(double w_state, double w_total, double op_penalty, double mask_penalty) {
-    return [=](const SimulationResult& sim, const MarchTest& mt) -> double {
-        std::size_t ops_count = 0;
-        for (const auto& e : mt.elements) ops_count += e.ops.size();
-        return w_state * sim.state_coverage
-             + w_total * sim.total_coverage
-             - op_penalty * static_cast<double>(ops_count)
-             - mask_penalty * static_cast<double>(mask_count);
-    };
-}
+// inline ScoreFunc make_score_state_total_ops_mask(double w_state, double w_total, double op_penalty, double mask_penalty) {
+//     return [=](const SimulationResult& sim, const MarchTest& mt) -> double {
+//         std::size_t ops_count = 0;
+//         for (const auto& e : mt.elements) ops_count += e.ops.size();
+//         return w_state * sim.state_coverage
+//              + w_total * sim.total_coverage
+//              - op_penalty * static_cast<double>(ops_count)
+//              - mask_penalty * static_cast<double>(mask_count);
+//     };
+// }
 
 // v2: lightweight prefix state for sequence constraints
 // Replace former DataState with Val (X/Zero/One) from FpParserAndTpGen.hpp
@@ -499,7 +499,7 @@ public:
                            const vector<Fault>& faults,
                            const vector<TestPrimitive>& tps,
                            std::unique_ptr<ICandidateGenerator> gen = std::make_unique<ValueExpandingGenerator>(),
-                           ScoreFunc scorer = make_score_state_total_ops_mask, // v2: pluggable scoring
+                           ScoreFunc scorer = score_state_total_ops, // v2: pluggable scoring
                            const SequenceConstraintSet* constraints = nullptr) // v2: optional sequence constraints
         : sim_(simulator)
         , lib_(lib)
