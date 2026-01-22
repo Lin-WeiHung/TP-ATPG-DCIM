@@ -1,6 +1,6 @@
 // g++ -std=c++20 -O2 -Wall -Wextra -Iinclude src/FaultSimulationEvent.cpp -o build/FaultSimulationEvent
-// ./build/FaultSimulationEvent input/S_C_faults.json input/MarchTest.json output/March_Sim_Report_event.html
-// g++ -std=c++20 -O2 -Wall -Wextra -Iinclude src/FaultSimulationEvent.cpp -o build/FaultSimulationEvent && ./build/FaultSimulationEvent input/S_C_faults.json input/MarchTest.json output/March_Sim_Report_event.html
+// Compare: ./build/FaultSimulationEvent input/S_C_faults.json input/Compare.json output/Compare.html
+// Ablation: ./build/FaultSimulationEvent input/S_C_faults.json input/Ablation.json output/Ablation.html
 
 #include <iostream>
 #include <fstream>
@@ -197,7 +197,39 @@ static void write_events_tab(std::ostream& ofs, const SimulationEventResult& sim
 // =============================
 
 struct CmdOptions { string faults_json; string march_json; string output_html; };
-static bool parse_args(int argc, char** argv, CmdOptions& opt){ if (argc!=4){ std::cerr << "Usage: " << (argc>0? argv[0]:"FaultSimulationEvent") << " <faults.json> <MarchTest.json> <output.html>\n"; return false; } opt.faults_json=argv[1]; opt.march_json=argv[2]; opt.output_html=argv[3]; return true; }
+
+static void print_simulator_help(const char* prog) {
+    std::cerr << "Simulator Mode - March Test Fault Simulation\n\n"
+              << "Usage: cim-atpg --mode simulator <faults.json> <MarchTests.json> <output.html>\n\n"
+              << "Arguments:\n"
+              << "  faults.json      : 錯誤模型定義檔案 (JSON 格式)\n"
+              << "  MarchTests.json  : March Test 序列檔案 (JSON 格式)\n"
+              << "  output.html      : 輸出 HTML 報表路徑\n\n"
+              << "Description:\n"
+              << "  模擬給定的 March Test 序列對錯誤模型的覆蓋率，\n"
+              << "  產生詳細的互動式 HTML 分析報表。\n\n"
+              << "範例:\n"
+              << "  cim-atpg --mode simulator faults.json Compare.json report.html\n"
+              << "  cim-atpg --mode simulator S_C_faults.json Ablation.json ablation.html\n";
+}
+
+static bool parse_args(int argc, char** argv, CmdOptions& opt){
+    // Check for help
+    if (argc == 2 && (std::string(argv[1]) == "-h" || std::string(argv[1]) == "--help")) {
+        print_simulator_help(argv[0]);
+        return false;
+    }
+    if (argc != 4) {
+        std::cerr << "Error: Simulator mode requires exactly 3 arguments\n\n";
+        print_simulator_help(argv[0]);
+        return false;
+    }
+    opt.faults_json = argv[1];
+    opt.march_json = argv[2];
+    opt.output_html = argv[3];
+    return true;
+}
+
 static void write_html_head(std::ostream& ofs, size_t faults_n, size_t tps_n, size_t mts_n){
     ofs << "<!DOCTYPE html><html><head><meta charset=\"utf-8\">\n";
     ofs << "<title>March Simulation Report</title>\n";
@@ -392,12 +424,17 @@ static void write_html_head(std::ostream& ofs, size_t faults_n, size_t tps_n, si
     ofs << "<p class=\"muted\">Faults: "<<faults_n<<", TPs: "<<tps_n<<", MarchTests: "<<mts_n<<"</p>\n";
 }
 
-int main(int argc, char** argv){
+// Entry point for Simulator mode (called from main.cpp)
+int run_simulator(int argc, char** argv){
     CmdOptions opt; if (!parse_args(argc, argv, opt)) return 2;
     try{
         using clock = std::chrono::steady_clock; auto to_us=[](auto d){ return std::chrono::duration_cast<std::chrono::microseconds>(d).count(); };
         // ensure output dir
-        try{ std::filesystem::path outp(opt.output_html); if (outp.has_parent_path()) std::filesystem::create_directories(outp.parent_path()); }catch(...){ }
+        auto parent = std::filesystem::path(opt.output_html).parent_path();
+        if (!parent.empty()) {
+            std::error_code ec;
+            std::filesystem::create_directories(parent, ec);
+        }
 
         // 1) Faults → Fault → TPs
         auto t1s=clock::now();
@@ -407,7 +444,7 @@ int main(int argc, char** argv){
         for (const auto& rf : raw_faults){ try{ faults.push_back(fnorm.normalize(rf)); } catch(const std::exception& e){ warnings.push_back(string("Skip fault '") + rf.fault_id + "': " + e.what()); } }
         vector<TestPrimitive> all_tps; all_tps.reserve(2048);
         for (const auto& f : faults){ auto tps = tpg.generate(f); all_tps.insert(all_tps.end(), tps.begin(), tps.end()); }
-        auto t1e=clock::now(); cout << "[時間] 1) Faults→Fault→TPs: "<< to_us(t1e-t1s) <<" us (raw_faults="<<raw_faults.size()<<", faults="<<faults.size()<<", TPs="<<all_tps.size()<<")\n";
+        auto t1e=clock::now(); cout << "[Simulator] Faults→TPs: "<< to_us(t1e-t1s) <<" us (faults="<<faults.size()<<", TPs="<<all_tps.size()<<")\n";
 
         // fault_id -> raw idx
         unordered_map<string, size_t> raw_index_by_id; raw_index_by_id.reserve(raw_faults.size()*2+1);

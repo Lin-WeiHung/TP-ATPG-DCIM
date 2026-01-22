@@ -164,36 +164,6 @@ private:
     vector<ElementTemplate> templates_;
 };
 
-// TemplateEnumerator: generate all sequences of length L (with optional rule-set pruning later)
-class TemplateEnumerator {
-public:
-    using TemplateId = TemplateLibrary::TemplateId;
-    struct Sequence { vector<TemplateId> ids; };
-
-    TemplateEnumerator(const TemplateLibrary& lib) : lib_(lib) {}
-
-    // Enumerate all sequences length num_elements (max_candidates=0 -> unlimited)
-    vector<Sequence> enumerate(size_t num_elements, size_t max_candidates = 0) const {
-        vector<Sequence> out;
-        if (num_elements==0 || lib_.size()==0) return out;
-        Sequence cur; cur.ids.resize(num_elements);
-        enumerate_rec(0, num_elements, max_candidates, cur, out);
-        return out;
-    }
-
-private:
-    const TemplateLibrary& lib_;
-    void enumerate_rec(size_t pos, size_t num_elements, size_t max_candidates, Sequence& cur, vector<Sequence>& out) const {
-        if (max_candidates>0 && out.size()>=max_candidates) return;
-        if (pos==num_elements) { out.push_back(cur); return; }
-        for (size_t tid=0; tid<lib_.size(); ++tid) {
-            cur.ids[pos]=tid;
-            enumerate_rec(pos+1, num_elements, max_candidates, cur, out);
-            if (max_candidates>0 && out.size()>=max_candidates) return;
-        }
-    }
-};
-
 // -----------------------------
 // Extensible CandidateGenerator
 // -----------------------------
@@ -305,31 +275,6 @@ struct CandidateResult {
 // v2: pluggable scoring function for searchers
 using ScoreFunc = std::function<double(const SimulationResult&, const MarchTest&)>;
 
-// v2: default scoring = total_coverage only
-inline double default_score_func(const SimulationResult& sim, const MarchTest& /*mt*/) {
-    return sim.total_coverage;
-}
-
-// v3: custom scoring – prioritize state coverage, use total coverage as secondary,
-// and penalize number of operations to encourage concise sequences.
-// score = 1.0*state_coverage + 0.5*total_coverage - 0.01*ops_count
-// Notes:
-// - Coverage values are expected in [0,1].
-// - ops_count = sum of ops across all elements of the MarchTest provided to scorer.
-// - Weights are conservative defaults; adjust if you need stronger op penalties.
-inline double score_state_total_ops(const SimulationResult& sim, const MarchTest& mt) {
-    const double w_state = 0.9;
-    const double w_total = 0.5;
-    const double op_penalty = 0.01; // penalty per op
-
-    std::size_t ops_count = 0;
-    for (const auto& e : mt.elements) ops_count += e.ops.size();
-
-    return w_state * sim.state_coverage
-         + w_total * sim.total_coverage
-         - op_penalty * static_cast<double>(ops_count);
-}
-
 // v4: factory 建立具權重參數的 ScoreFunc（使用 lambda capture）
 // 允許呼叫端自訂 w_state, w_total, op_penalty，而不需要改動搜尋器介面或增加繁雜結構。
 inline ScoreFunc make_score_state_total_ops(double w_state, double w_total, double op_penalty) {
@@ -341,17 +286,6 @@ inline ScoreFunc make_score_state_total_ops(double w_state, double w_total, doub
              - op_penalty * static_cast<double>(ops_count);
     };
 }
-
-// inline ScoreFunc make_score_state_total_ops_mask(double w_state, double w_total, double op_penalty, double mask_penalty) {
-//     return [=](const SimulationResult& sim, const MarchTest& mt) -> double {
-//         std::size_t ops_count = 0;
-//         for (const auto& e : mt.elements) ops_count += e.ops.size();
-//         return w_state * sim.state_coverage
-//              + w_total * sim.total_coverage
-//              - op_penalty * static_cast<double>(ops_count)
-//              - mask_penalty * static_cast<double>(mask_count);
-//     };
-// }
 
 // v2: lightweight prefix state for sequence constraints
 // Replace former DataState with Val (X/Zero/One) from FpParserAndTpGen.hpp
@@ -465,28 +399,6 @@ public:
     }
 };
 
-// v3: first element must have at least one Write and no Read
-class FirstElementHasWriteNoReadConstraint : public ISequenceConstraint {
-public:
-    bool allow(const PrefixState& prefix,
-               const MarchElement& elem,
-               std::size_t pos) const override {
-        // Only restrict the very first element of the sequence
-        if (pos != 0 && prefix.length != 0) return true;
-
-        bool has_write = false;
-        for (const auto& op : elem.ops) {
-            if (op.kind == OpKind::Write) {
-                has_write = true;
-            } else if (op.kind == OpKind::Read) {
-                // Disallow any R in the first element
-                return false;
-            }
-        }
-        return has_write;
-    }
-};
-
 // -----------------------------
 // GreedyTemplateSearcher
 //  - sequentially pick next element that maximizes incremental score
@@ -499,14 +411,14 @@ public:
                            const vector<Fault>& faults,
                            const vector<TestPrimitive>& tps,
                            std::unique_ptr<ICandidateGenerator> gen = std::make_unique<ValueExpandingGenerator>(),
-                           ScoreFunc scorer = score_state_total_ops, // v2: pluggable scoring
+                           ScoreFunc scorer = nullptr, // v2: pluggable scoring (default: make_score_state_total_ops(0.9, 0.5, 0.01))
                            const SequenceConstraintSet* constraints = nullptr) // v2: optional sequence constraints
         : sim_(simulator)
         , lib_(lib)
         , faults_(faults)
         , tps_(tps)
         , gen_(std::move(gen))
-        , scorer_(std::move(scorer)) // v2
+        , scorer_(scorer ? std::move(scorer) : make_score_state_total_ops(0.9, 0.5, 0.01)) // v2: use default if nullptr
         , constraints_(constraints)   // v2
     {}
 
@@ -525,6 +437,13 @@ public:
         // re-simulate the full prefix to get accurate remaining coverage.
         // For efficiency you may modify FaultSimulator to support incremental simulation; PoC uses full simulate each time.
 
+        // Optimization: Pre-generate all candidate elements once to avoid redundant expansion at each position
+        vector<vector<MarchElement>> all_candidates;
+        all_candidates.reserve(lib_.size());
+        for (size_t tid = 0; tid < lib_.size(); ++tid) {
+            all_candidates.push_back(gen_->generate(lib_, tid));
+        }
+
         vector<TemplateLibrary::TemplateId> chosen_ids;
         chosen_ids.reserve(L);
 
@@ -534,10 +453,10 @@ public:
             MarchElement best_elem;
             SimulationResult best_sim;
 
-            // For each candidate template id, generate element variants (e.g., different values)
+            // For each candidate template id, use pre-generated element variants
             for (size_t tid = 0; tid < lib_.size(); ++tid) {
-                auto elems = gen_->generate(lib_, tid);
-                for (auto &elem_variant : elems) {
+                const auto& elems = all_candidates[tid];
+                for (const auto &elem_variant : elems) {
                     // v2: apply sequence-level constraints before simulating
                     if (constraints_ && !constraints_->allow(prefix_state, elem_variant, pos)) {
                         continue;
@@ -598,256 +517,6 @@ private:
     ScoreFunc scorer_;                        // v2: scoring strategy
     const SequenceConstraintSet* constraints_; // v2: optional sequence constraints
 };
-
-// -----------------------------
-// BeamTemplateSearcher (extensible)
-//  - keep beam_width prefixes each level
-//  - returns top_k final candidates
-// -----------------------------
-class BeamTemplateSearcher {
-public:
-    BeamTemplateSearcher(FaultSimulator& simulator,
-                         const TemplateLibrary& lib,
-                         const vector<Fault>& faults,
-                         const vector<TestPrimitive>& tps,
-                         size_t beam_width = 8,
-                         std::unique_ptr<ICandidateGenerator> gen = std::make_unique<ValueExpandingGenerator>(),
-                         ScoreFunc scorer = default_score_func, // v2: pluggable scoring
-                         const SequenceConstraintSet* constraints = nullptr, // v2: optional sequence constraints
-                         std::function<void(std::size_t /*level*/, std::size_t /*candidates*/, std::size_t /*kept*/)> progress_cb = nullptr) // v3: optional progress callback
-        : sim_(simulator)
-        , lib_(lib)
-        , faults_(faults)
-        , tps_(tps)
-        , beam_width_(beam_width)
-        , gen_(std::move(gen))
-        , scorer_(std::move(scorer)) // v2
-        , constraints_(constraints)   // v2
-        , progress_cb_(std::move(progress_cb)) // v3
-        {}
-
-    // Run beam search for length L, produce up to top_k final candidates (sorted by score desc)
-    vector<CandidateResult> run(size_t L, size_t top_k = 1) {
-        struct BeamNode {
-            vector<TemplateLibrary::TemplateId> seq;
-            MarchTest mt;
-            SimulationResult sim; // simulation of mt
-            double score{0.0};
-            PrefixState prefix_state; // v2: per-path sequence state (D / length)
-        };
-
-        // initialize beam with empty prefix
-        vector<BeamNode> beam;
-        BeamNode root;
-        root.mt.name = "beam_root";
-        root.score = 0.0;
-        // root.prefix_state is default-initialized (Unknown / length=0)
-        beam.push_back(std::move(root));
-
-        for (size_t pos = 0; pos < L; ++pos) {
-            vector<BeamNode> candidates;
-            candidates.reserve(beam.size() * lib_.size());
-
-            // expand each beam node
-            for (const auto& node : beam) {
-                // for each template id
-                for (size_t tid = 0; tid < lib_.size(); ++tid) {
-                    auto elems = gen_->generate(lib_, tid);
-                    for (auto &elem_variant : elems) {
-                        // skip empty element (no ops) to avoid useless candidates, but allow if wanted
-                        if (elem_variant.ops.empty()) continue;
-
-                        // v2: apply sequence-level constraints before simulating
-                        if (constraints_ && !constraints_->allow(node.prefix_state, elem_variant, pos)) {
-                            continue;
-                        }
-
-                        BeamNode nb;
-                        nb.seq = node.seq;
-                        nb.seq.push_back(tid);
-                        nb.mt = node.mt;
-                        nb.mt.elements.push_back(elem_variant);
-
-                        // v2: update prefix_state for this new path
-                        nb.prefix_state = node.prefix_state;
-                        if (constraints_) {
-                            constraints_->update(nb.prefix_state, elem_variant, pos);
-                        } else {
-                            ++nb.prefix_state.length;
-                        }
-
-                        // simulate nb.mt to get accurate coverage given the progressive nature
-                        nb.sim = sim_.simulate(nb.mt, faults_, tps_);
-                        nb.score = scorer_(nb.sim, nb.mt); // v2: use pluggable scorer
-
-                        candidates.push_back(std::move(nb));
-                    }
-                }
-            }
-
-            // sort candidates by score desc and pick top beam_width_
-            std::sort(candidates.begin(), candidates.end(),
-                      [](const BeamNode& a, const BeamNode& b){ return a.score > b.score; });
-
-            if (candidates.empty()) {
-                // no expansions -> break early
-                break;
-            }
-
-            size_t keep = std::min(beam_width_, candidates.size());
-            beam.clear();
-            beam.insert(beam.end(), candidates.begin(), candidates.begin() + keep);
-
-            // v3: progress callback per level
-            if (progress_cb_) {
-                progress_cb_(pos+1, candidates.size(), keep);
-            }
-        }
-
-        // beam now contains final prefixes; convert to CandidateResult and sort by score
-        vector<CandidateResult> results;
-        for (const auto& node : beam) {
-            CandidateResult cr;
-            cr.sequence = node.seq;
-            cr.march_test = node.mt;
-            cr.sim_result = node.sim;
-            cr.score = scorer_(cr.sim_result, cr.march_test); // v2: consistent score
-            results.push_back(std::move(cr));
-        }
-        std::sort(results.begin(), results.end(), [](const CandidateResult& a, const CandidateResult& b){
-            return a.score > b.score;
-        });
-
-        if (top_k>0 && results.size()>top_k) results.resize(top_k);
-        return results;
-    }
-
-    // Streaming beam search (DFS enumeration):
-    //  - Enumerates all value permutations for each template slot via DFS (R/W/Compute), avoiding generator ordering bias
-    //  - Keeps only top beam_width_ nodes per level using min-heap (score ascending)
-    //  - expand_cap limits variants per template; default = unlimited (numeric_limits::max())
-    //  - PrefixState is per node; greedy prefix_state not reused (separate state)
-    //  - Constraints are read-only strategy objects; no shared mutable state
-    //  - Returns up to beam_width_ final candidates sorted by score desc
-    vector<CandidateResult> run_stream(size_t L,
-                                       size_t expand_cap = std::numeric_limits<size_t>::max()) {
-        struct StreamNode {
-            vector<TemplateLibrary::TemplateId> seq;
-            MarchTest mt;
-            SimulationResult sim;
-            double score{0.0};
-            PrefixState prefix_state; // per-path sequence state
-        };
-        auto betterScore = [](const StreamNode& a, const StreamNode& b){ return a.score > b.score; };
-
-        // Initialize beam with root
-        vector<StreamNode> beam;
-        beam.push_back(StreamNode{}); beam.back().mt.name = "stream_root"; // empty
-
-        for(std::size_t level=0; level<L; ++level){
-            // min-heap (score ascending) storing top beam_width_ nodes
-            auto cmpMin = [](const StreamNode& a, const StreamNode& b){ return a.score > b.score; };
-            std::priority_queue<StreamNode, std::vector<StreamNode>, decltype(cmpMin)> heap(cmpMin);
-            std::size_t total_candidates = 0;
-
-            for(const auto& node : beam){
-                for(std::size_t tid=0; tid<lib_.size(); ++tid){
-                    const auto& et = lib_.at(tid);
-                    // Enumerate element variants on-the-fly with cap
-                    // Build slot option lists
-                    struct SlotChoices { TemplateOpKind kind; std::vector<Op> opts; };
-                    std::vector<SlotChoices> slots; slots.reserve(et.slot_count());
-                    auto add_compute = [](std::vector<Op>& v){ for(int m=0;m<8;++m){ Op o; o.kind=OpKind::ComputeAnd; o.C_T=(m&1)?Val::One:Val::Zero; o.C_M=(m&2)?Val::One:Val::Zero; o.C_B=(m&4)?Val::One:Val::Zero; v.push_back(o);} };
-                    for(const auto& s : et.get_slots()){
-                        SlotChoices sc{ s.kind, {} };
-                        switch(s.kind){
-                            case TemplateOpKind::None: break;
-                            case TemplateOpKind::Read: {
-                                Op r0; r0.kind=OpKind::Read; r0.value=Val::Zero; Op r1; r1.kind=OpKind::Read; r1.value=Val::One; sc.opts={r0,r1};
-                            } break;
-                            case TemplateOpKind::Write: {
-                                Op w0; w0.kind=OpKind::Write; w0.value=Val::Zero; Op w1; w1.kind=OpKind::Write; w1.value=Val::One; sc.opts={w0,w1};
-                            } break;
-                            case TemplateOpKind::Compute: {
-                                add_compute(sc.opts);
-                            } break;
-                        }
-                        slots.push_back(std::move(sc));
-                    }
-                    std::vector<int> choice(slots.size(),0);
-                    std::size_t visited=0;
-                    std::function<void(std::size_t)> dfs = [&](std::size_t idx){
-                        if(visited>=expand_cap) return;
-                        if(idx==slots.size()){
-                            MarchElement elem; elem.order = et.get_order();
-                            for(std::size_t si=0; si<slots.size(); ++si){ if(slots[si].kind==TemplateOpKind::None) continue; elem.ops.push_back(slots[si].opts[choice[si]]); }
-                            // skip empty element (no ops)
-                            if(elem.ops.empty()) { ++visited; return; }
-                            if(constraints_ && !constraints_->allow(node.prefix_state, elem, level)){ ++visited; return; }
-                            StreamNode child; child.seq = node.seq; child.seq.push_back(tid); child.mt = node.mt; child.mt.elements.push_back(elem); child.prefix_state = node.prefix_state;
-                            if(constraints_) constraints_->update(child.prefix_state, elem, level); else ++child.prefix_state.length;
-                            child.sim = sim_.simulate(child.mt, faults_, tps_);
-                            child.score = scorer_(child.sim, child.mt);
-                            ++visited; ++total_candidates;
-                            if(heap.size()<beam_width_) heap.push(std::move(child));
-                            else if(child.score > heap.top().score){ heap.pop(); heap.push(std::move(child)); }
-                            return;
-                        }
-                        if(slots[idx].kind==TemplateOpKind::None){ dfs(idx+1); return; }
-                        for(int opt_i=0; opt_i<(int)slots[idx].opts.size(); ++opt_i){ if(visited>=expand_cap) break; choice[idx]=opt_i; dfs(idx+1); }
-                    };
-                    dfs(0);
-                }
-            }
-            // materialize heap into next beam
-            std::vector<StreamNode> next; next.reserve(heap.size());
-            while(!heap.empty()){ next.push_back(std::move(const_cast<StreamNode&>(heap.top()))); heap.pop(); }
-            std::sort(next.begin(), next.end(), betterScore);
-            if(progress_cb_) progress_cb_(level+1, total_candidates, next.size());
-            if(next.empty()) break;
-            beam = std::move(next);
-        }
-        // Convert final beam to results
-        vector<CandidateResult> out; out.reserve(beam.size());
-        for(auto& n : beam){ CandidateResult cr; cr.sequence = n.seq; cr.march_test = n.mt; cr.sim_result = n.sim; cr.score = scorer_(cr.sim_result, cr.march_test); out.push_back(std::move(cr)); }
-        std::sort(out.begin(), out.end(), [](const CandidateResult& a, const CandidateResult& b){ return a.score > b.score; });
-        return out; // size <= beam_width_
-    }
-
-private:
-    FaultSimulator& sim_;
-    const TemplateLibrary& lib_;
-    const vector<Fault>& faults_;
-    const vector<TestPrimitive>& tps_;
-    size_t beam_width_;
-    std::unique_ptr<ICandidateGenerator> gen_;
-    ScoreFunc scorer_;                        // v2: scoring strategy
-    const SequenceConstraintSet* constraints_; // v2: optional sequence constraints
-    std::function<void(std::size_t,std::size_t,std::size_t)> progress_cb_; // v3
-};
-
-// -----------------------------
-// Utility: pretty print CandidateResult
-// -----------------------------
-inline void print_candidate_result(const CandidateResult& cr, std::ostream& os = std::cout) {
-    os << "Sequence (template ids): ";
-    for (auto id : cr.sequence) os << id << " ";
-    os << "\n";
-    os << "MarchTest name: " << cr.march_test.name << "\n";
-    os << "Elements: " << cr.march_test.elements.size() << "\n";
-    for (size_t i=0;i<cr.march_test.elements.size();++i) {
-        const auto& e = cr.march_test.elements[i];
-        os << "  Elem[" << i << "] order=" << (e.order==AddrOrder::Up?"Up":(e.order==AddrOrder::Down?"Down":"Any")) << " ops=";
-        for (const auto& op : e.ops) {
-            if (op.kind==OpKind::Read) os << "R" << (op.value==Val::Zero?"0":"1") << ",";
-            else if (op.kind==OpKind::Write) os << "W" << (op.value==Val::Zero?"0":"1") << ",";
-            else if (op.kind==OpKind::ComputeAnd) os << "C(" << (op.C_T==Val::One?"1":"0") << "," << (op.C_M==Val::One?"1":"0") << "," << (op.C_B==Val::One?"1":"0") << "),";
-            else os << "?";
-        }
-        os << "\n";
-    }
-    os << "Sim total coverage: " << cr.sim_result.total_coverage << "\n";
-}
 
 } // namespace template_search
 } // namespace css

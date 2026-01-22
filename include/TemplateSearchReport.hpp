@@ -20,47 +20,6 @@ using css::template_search::CandidateResult; // other types (MarchTest, Op, etc.
 
 class TemplateSearchReport {
 public:
-    void gen_html(const std::vector<CandidateResult>& combined_list,
-                  const std::string& out_path,
-                  double w_state,
-                  double w_total,
-                  double op_penalty,
-                  std::size_t slot_count,
-                  long long greedy_ms,
-                  long long beam_ms) const {
-        std::ofstream ofs(out_path);
-        if(!ofs.is_open()){
-            std::cerr << "[HTML] Failed to open path: " << out_path << std::endl;
-            return;
-        }
-        write_html_start(ofs, "Template Search Report");
-        ofs << render_meta(slot_count, greedy_ms, beam_ms, w_state, w_total, op_penalty, combined_list);
-        ofs << "<h2>Combined Results (Greedy + Beam)</h2><div class=cards>";
-        ofs << render_candidate_cards(combined_list, w_state, w_total, op_penalty);
-        ofs << "</div>";
-        write_html_end(ofs);
-    }
-
-    // New entry: render results from March JSON after simulation
-    // Shows same bars and march table as gen_html, with meta including source name and best result.
-    bool gen_html_from_march_json(const std::string& source_name,
-                                  const std::vector<CandidateResult>& results,
-                                  const std::string& out_path) const {
-        std::ofstream ofs(out_path);
-        if(!ofs.is_open()){
-            std::cerr << "[HTML] Failed to open output: " << out_path << std::endl;
-            return false;
-        }
-        write_html_start(ofs, "March Test Report");
-
-        ofs << render_meta_march(source_name, results);
-        ofs << "<h2>March Tests</h2><div class=cards>";
-        ofs << render_march_result_cards(results);
-        ofs << "</div>";
-        write_html_end(ofs);
-        return true;
-    }
-
     // Extended: generate HTML with per-op scores (OpScorer). Each candidate gets a dropdown listing ops.
     // If use_opscore=false, op-level scores still computed with provided weights (default or user) for inspection.
     void gen_html_with_op_scores(const std::vector<CandidateResult>& results,
@@ -151,57 +110,6 @@ private:
     @media (max-width:700px){ .cards { grid-template-columns:1fr; } }
     </style>)";
     }
-    static std::string render_meta_march(const std::string& source_name,
-                                         const std::vector<CandidateResult>& results){
-        std::ostringstream ofs;
-        double best_total = 0.0;
-        for(const auto& c: results){
-            best_total = std::max(best_total, c.sim_result.total_coverage*100.0);
-        }
-        ofs << "<div class=meta>";
-        ofs << "<div class=metric><div class=lbl>Source</div><div class=val>"<< esc(source_name) <<"</div></div>";
-        ofs << "<div class=metric><div class=lbl>Items</div><div class=val>"<< results.size() <<"</div></div>";
-        ofs << "<div class=metric><div class=lbl>Best Total%</div><div class=val>"<< fmt_percent_value(best_total) <<"%</div></div>";
-        ofs << "</div>";
-        return ofs.str();
-    }
-
-    static std::string render_march_result_cards(const std::vector<CandidateResult>& results){
-        std::ostringstream os;
-        for(const auto& cr: results){ os << render_march_result_card(cr); }
-        return os.str();
-    }
-
-    // Meta section for candidate results
-    static std::string render_meta(std::size_t slot_count,
-                                   long long greedy_ms,
-                                   long long beam_ms,
-                                   double w_state,
-                                   double w_total,
-                                   double op_penalty,
-                                   const std::vector<CandidateResult>& combined_list){
-        std::ostringstream ofs;
-        ofs << "<div class=meta>";
-        ofs << "<div class=metric><div class=lbl>Slots</div><div class=val>"<< slot_count <<"</div></div>";
-        ofs << "<div class=metric><div class=lbl>Greedy Time</div><div class=val>"<< greedy_ms <<" ms</div></div>";
-        ofs << "<div class=metric><div class=lbl>Beam Time</div><div class=val>"<< beam_ms <<" ms</div></div>";
-        ofs << "<div class=metric><div class=lbl>Scoring Formula</div><div class=val>w_state="<< w_state <<" / w_total="<< w_total <<" / pen="<< op_penalty <<"</div></div>";
-        double best_total = 0.0; for(const auto& c: combined_list) best_total = std::max(best_total, c.sim_result.total_coverage*100.0);
-        ofs << "<div class=metric><div class=lbl>Best Total%</div><div class=val>"<< fmt_percent_value(best_total) <<"%</div></div>";
-        ofs << "<div class=metric><div class=lbl>Combined Count</div><div class=val>"<< combined_list.size() <<"</div></div>";
-        ofs << "</div>";
-        return ofs.str();
-    }
-
-    static std::string render_candidate_cards(const std::vector<CandidateResult>& combined_list,
-                                              double w_state,
-                                              double w_total,
-                                              double op_penalty){
-        std::ostringstream os;
-        for(const auto& cr: combined_list){ os << render_candidate_card(cr, w_state, w_total, op_penalty); }
-        return os.str();
-    }
-
     static std::string op_to_str(const Op& op){
         switch(op.kind){
             case OpKind::Read:  return std::string("R") + (op.value==Val::One?"1":"0");
@@ -224,46 +132,6 @@ private:
             ss << "</td></tr>\n";
         }
         ss << "</table>\n";
-        return ss.str();
-    }
-
-    static std::string render_candidate_card(const CandidateResult& cr,
-                                             double w_state,
-                                             double w_total,
-                                             double op_penalty){
-        std::ostringstream ss;
-        std::size_t ops_count = 0; for(const auto& e: cr.march_test.elements) ops_count += e.ops.size();
-        double state_cov = cr.sim_result.state_coverage;
-        double sens_cov  = cr.sim_result.sens_coverage;
-        double total_cov = cr.sim_result.total_coverage;
-        auto pct = [](double v){ return (v*100.0); };
-        double s_state = w_state * state_cov;
-        double s_total = w_total * total_cov;
-        double s_pen   = op_penalty * static_cast<double>(ops_count);
-        double s_sum   = s_state + s_total - s_pen;
-
-        ss << "<div class=card>\n";
-        ss << "  <div class=\"card-head\">";
-        ss << "<span class=score>Score: "<< std::fixed << std::setprecision(3) << cr.score << "</span>";
-        ss << "<span class=ops>Total Ops: "<< ops_count << "</span>";
-        ss << "</div>\n";
-
-        auto bar = [&](const char* label, const char* cls, double value){
-            ss << "  <div class=cov-row><span class=lbl>"<<label<<" "<< fmt_percent_fraction(value) <<"%</span><div class=bar-wrap><div class='bar "<<cls<<"' style='width:"<< std::min(100.0, pct(value)) <<"%'></div></div></div>\n";
-        };
-        bar("State", "state", state_cov);
-        bar("Sens",  "sens",  sens_cov);
-        bar("Total", "total", total_cov);
-
-        ss << "  <div class=score-break>";
-        ss << "<div>state component: "<< std::setprecision(3) << s_state << " (w="<< w_state <<")</div>";
-        ss << "<div>total component: "<< std::setprecision(3) << s_total << " (w="<< w_total <<")</div>";
-        ss << "<div>op penalty: -"<< std::setprecision(3) << s_pen << " (w="<< op_penalty <<")</div>";
-        ss << "<div class=sum>final: "<< std::setprecision(3) << s_sum << "</div>";
-        ss << "  </div>\n";
-
-        ss << render_march_test_html(cr.march_test);
-        ss << "</div>\n";
         return ss.str();
     }
 
@@ -309,53 +177,6 @@ private:
         return ss.str();
     }
 
-    // Card renderer for March JSON results: show name, hide score and template IDs.
-    static std::string render_march_result_card(const CandidateResult& cr){
-        std::ostringstream ss;
-        std::size_t ops_count = 0; for(const auto& e: cr.march_test.elements) ops_count += e.ops.size();
-        double state_cov = cr.sim_result.state_coverage;
-        double sens_cov  = cr.sim_result.sens_coverage;
-        double total_cov = cr.sim_result.total_coverage;
-        auto pct = [](double v){ return (v*100.0); };
-        ss << "<div class=card>\n";
-        ss << "  <div class=\"card-head\">";
-        ss << "<span class=score>" << esc(cr.march_test.name) << "</span>";
-        ss << "<span class=ops>Total Ops: "<< ops_count << "</span>";
-        ss << "</div>\n";
-        auto bar = [&](const char* label, const char* cls, double value){
-            ss << "  <div class=cov-row><span class=lbl>"<<label<<" "<< fmt_percent_fraction(value) <<"%</span><div class=bar-wrap><div class='bar "<<cls<<"' style='width:"<< std::min(100.0, pct(value)) <<"%'></div></div></div>\n";
-        };
-        bar("State", "state", state_cov);
-        bar("Sens",  "sens",  sens_cov);
-        bar("Total", "total", total_cov);
-        ss << render_march_test_html(cr.march_test);
-        ss << "</div>\n";
-        return ss.str();
-    }
-
-    // Render a simple card from March JSON (name + raw pattern pretty print)
-    static std::string render_march_json_card(const std::string& name,
-                                              const std::string& pattern){
-        std::ostringstream ss;
-        ss << "<div class=card>\n";
-        ss << "  <div class=\"card-head\">";
-        ss << "<span class=score>March: "<< esc(name) << "</span>";
-        ss << "</div>\n";
-        ss << "  <div class=seq>Pattern</div>";
-        ss << "  <pre class=pattern>" << pattern_multiline(pattern) << "</pre>\n";
-        ss << "</div>\n";
-        return ss.str();
-    }
-    static std::string pattern_multiline(const std::string& pattern){
-        // Replace "; " with ";\n" and escape HTML
-        std::string p = pattern; // original
-        std::string out; out.reserve(p.size()+16);
-        for(size_t i=0;i<p.size();++i){
-            if(i+1<p.size() && p[i]==';' && p[i+1]==' '){ out += esc(std::string(1,p[i])); out += "\n"; ++i; continue; }
-            out += esc(std::string(1,p[i]));
-        }
-        return out;
-    }
     // Percentage formatting helpers
     static std::string fmt_percent_value(double v){
         double rounded = std::round(v);
