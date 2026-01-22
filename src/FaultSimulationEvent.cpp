@@ -418,6 +418,18 @@ static void write_html_head(std::ostream& ofs, size_t faults_n, size_t tps_n, si
            "    else r.style.display = 'none';\n"
            "  });\n"
            "}\n"
+           "function openTab(evt, tabName) {\n"
+           "  // Hide all tab contents in the same container\n"
+           "  var container = evt.target.closest('.tab-container');\n"
+           "  var contents = container.querySelectorAll('.tab-content');\n"
+           "  contents.forEach(c => c.classList.remove('active'));\n"
+           "  // Deactivate all tab buttons\n"
+           "  var btns = container.querySelectorAll('.tab-btn');\n"
+           "  btns.forEach(b => b.classList.remove('active'));\n"
+           "  // Show selected tab and activate button\n"
+           "  document.getElementById(tabName).classList.add('active');\n"
+           "  evt.target.classList.add('active');\n"
+           "}\n"
            "</script>\n";
     ofs << "</head><body>\n";
     ofs << "<h1>March Simulation Report</h1>\n";
