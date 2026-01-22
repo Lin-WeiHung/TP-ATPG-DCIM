@@ -1,0 +1,146 @@
+[
+  {
+    "March_test": "Best_slots4_L6",
+    "Pattern": "a(W0); a(C(1)(1)(1), W1, C(0)(0)(0), C(0)(1)(0)); a(C(0)(1)(0), R1, W0, C(0)(0)(0)); a(R0); d(C(0)(1)(0), W1, C(1)(1)(1)); d(C(0)(1)(0), W0, C(0)(1)(1));",
+    "state_coverage": 1.0,
+    "total_coverage": 1.0
+  },
+  {
+    "March_test": "Best_slots3_L6",
+    "Pattern": "a(W0); a(C(1)(1)(1), W1, C(0)(1)(0)); a(C(1)(1)(1), W0, C(0)(1)(0)); a(C(0)(0)(0), R0); d(W1, C(0)(1)(0), C(0)(0)(0)); d(R1, W0);",
+    "state_coverage": 1.0,
+    "total_coverage": 0.9558823529411765
+  },
+  {
+    "March_test": "Best_slots4_L5",
+    "Pattern": "a(W0); a(C(1)(1)(1), W1, C(0)(0)(0), C(0)(1)(0)); a(C(0)(1)(0), R1, W0, C(0)(0)(0)); a(R0); d(C(0)(1)(0), W1, C(1)(1)(1));",
+    "state_coverage": 1.0,
+    "total_coverage": 0.9264705882352942
+  },
+  {
+    "March_test": "Best_slots4_L4",
+    "Pattern": "a(W0); a(C(1)(1)(1), W1, C(0)(0)(0), C(0)(1)(0)); a(C(0)(1)(0), R1, W0, C(0)(0)(0)); a(R0);",
+    "state_coverage": 1.0,
+    "total_coverage": 0.8529411764705882
+  },
+  {
+    "March_test": "Best_slots3_L5",
+    "Pattern": "a(W0); a(C(1)(1)(1), W1, C(0)(1)(0)); a(C(1)(1)(1), W0, C(0)(1)(0)); a(C(0)(0)(0), R0); d(W1, C(0)(1)(0), C(0)(0)(0));",
+    "state_coverage": 0.9852941176470589,
+    "total_coverage": 0.8382352941176471
+  },
+  {
+    "March_test": "Best_slots2_L6",
+    "Pattern": "a(W0); a(W1, C(1)(1)(1)); a(W0, C(0)(1)(0)); a(C(0)(0)(0), R0); d(W1, C(0)(1)(0)); a(C(1)(0)(0), R1);",
+    "state_coverage": 0.9705882352941176,
+    "total_coverage": 0.7794117647058824
+  },
+  {
+    "March_test": "Best_slots3_L4",
+    "Pattern": "a(W0); a(C(1)(1)(1), W1, C(0)(1)(0)); a(C(1)(1)(1), W0, C(0)(1)(0)); a(C(0)(0)(0), R0);",
+    "state_coverage": 0.9705882352941176,
+    "total_coverage": 0.75
+  },
+  {
+    "March_test": "Best_slots4_L3",
+    "Pattern": "a(W0); a(C(1)(1)(1), W1, C(0)(0)(0), C(0)(1)(0)); a(C(0)(1)(0), R1, W0, C(0)(0)(0));",
+    "state_coverage": 0.9852941176470589,
+    "total_coverage": 0.7058823529411765
+  },
+  {
+    "March_test": "Best_slots2_L5",
+    "Pattern": "a(W0); a(W1, C(1)(1)(1)); a(W0, C(0)(1)(0)); a(C(0)(0)(0), R0); d(W1, C(0)(1)(0));",
+    "state_coverage": 0.9705882352941176,
+    "total_coverage": 0.6323529411764706
+  },
+  {
+    "March_test": "Best_slots3_L3",
+    "Pattern": "a(W0); a(C(1)(1)(1), W1, C(0)(1)(0)); a(C(1)(1)(1), W0, C(0)(1)(0));",
+    "state_coverage": 0.9558823529411765,
+    "total_coverage": 0.6029411764705882
+  },
+  {
+    "March_test": "Best_slots2_L4",
+    "Pattern": "a(W0); a(W1, C(1)(1)(1)); a(W0, C(0)(1)(0)); a(C(0)(0)(0), R0);",
+    "state_coverage": 0.9558823529411765,
+    "total_coverage": 0.5441176470588235
+  },
+  {
+    "March_test": "Best_slots1_L6",
+    "Pattern": "a(W0); a(C(1)(1)(1)); a(C(0)(0)(0)); a(R0); a(W1); a(C(1)(1)(0));",
+    "state_coverage": 0.8088235294117647,
+    "total_coverage": 0.47058823529411764
+  },
+  {
+    "March_test": "Best_slots4_L2",
+    "Pattern": "a(W0); a(C(1)(1)(1), W1, C(0)(0)(0), C(0)(1)(0));",
+    "state_coverage": 0.8382352941176471,
+    "total_coverage": 0.4411764705882353
+  },
+  {
+    "March_test": "Best_slots3_L2",
+    "Pattern": "a(W0); a(C(1)(1)(1), W1, C(0)(1)(0));",
+    "state_coverage": 0.7941176470588235,
+    "total_coverage": 0.39705882352941174
+  },
+  {
+    "March_test": "Best_slots2_L3",
+    "Pattern": "a(W0); a(W1, C(1)(1)(1)); a(W0, C(0)(1)(0));",
+    "state_coverage": 0.9264705882352942,
+    "total_coverage": 0.39705882352941174
+  },
+  {
+    "March_test": "Best_slots1_L5",
+    "Pattern": "a(W0); a(C(1)(1)(1)); a(C(0)(0)(0)); a(R0); a(W1);",
+    "state_coverage": 0.4264705882352941,
+    "total_coverage": 0.29411764705882354
+  },
+  {
+    "March_test": "Best_slots1_L4",
+    "Pattern": "a(W0); a(C(1)(1)(1)); a(C(0)(0)(0)); a(R0);",
+    "state_coverage": 0.4117647058823529,
+    "total_coverage": 0.29411764705882354
+  },
+  {
+    "March_test": "Best_slots2_L2",
+    "Pattern": "a(W0); a(W1, C(1)(1)(1));",
+    "state_coverage": 0.75,
+    "total_coverage": 0.27941176470588236
+  },
+  {
+    "March_test": "Best_slots1_L3",
+    "Pattern": "a(W0); a(C(1)(1)(1)); a(C(0)(0)(0));",
+    "state_coverage": 0.4117647058823529,
+    "total_coverage": 0.17647058823529413
+  },
+  {
+    "March_test": "Best_slots1_L2",
+    "Pattern": "a(W0); a(C(1)(1)(1));",
+    "state_coverage": 0.35294117647058826,
+    "total_coverage": 0.11764705882352941
+  },
+  {
+    "March_test": "Best_slots1_L1",
+    "Pattern": "a(W0);",
+    "state_coverage": 0.029411764705882353,
+    "total_coverage": 0.0
+  },
+  {
+    "March_test": "Best_slots4_L1",
+    "Pattern": "a(W0);",
+    "state_coverage": 0.029411764705882353,
+    "total_coverage": 0.0
+  },
+  {
+    "March_test": "Best_slots3_L1",
+    "Pattern": "a(W0);",
+    "state_coverage": 0.029411764705882353,
+    "total_coverage": 0.0
+  },
+  {
+    "March_test": "Best_slots2_L1",
+    "Pattern": "a(W0);",
+    "state_coverage": 0.029411764705882353,
+    "total_coverage": 0.0
+  }
+]

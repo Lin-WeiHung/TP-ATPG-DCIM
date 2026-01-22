@@ -51,13 +51,13 @@ docker run --rm cim-atpg:latest --help
 
 # 3. Generate 模式 - 產生 March Test
 docker run --rm -it \
-  -v $(pwd)/input:/data -w /data \
+  -v `pwd`/input:/data -w /data \
   cim-atpg:latest \
   --mode generate S_C_faults.json output.json output.html
 
 # 4. Simulator 模式 - 分析現有 March Test
 docker run --rm -it \
-  -v $(pwd)/input:/data -w /data \
+  -v `pwd`/input:/data -w /data \
   cim-atpg:latest \
   --mode simulator S_C_faults.json Compare.json report.html
 ```
@@ -123,13 +123,13 @@ docker run --rm -it \
 ```bash
 # 快速測試
 docker run --rm -it \
-  -v $(pwd)/input:/data -w /data \
+  -v `pwd`/input:/data -w /data \
   cim-atpg:latest \
   --mode generate S_C_faults.json out.json out.html --max-slots 2 --max-L 2
 
 # 完整搜尋
 docker run --rm -it \
-  -v $(pwd)/input:/data -w /data \
+  -v `pwd`/input:/data -w /data \
   cim-atpg:latest \
   --mode generate S_C_faults.json result.json result.html --max-slots 4 --max-L 6
 ```
@@ -179,13 +179,13 @@ docker run --rm -it \
 ```bash
 # 比較不同 March Test
 docker run --rm -it \
-  -v $(pwd)/input:/data -w /data \
+  -v `pwd`/input:/data -w /data \
   cim-atpg:latest \
   --mode simulator S_C_faults.json Compare.json compare_report.html
 
 # Ablation Study
 docker run --rm -it \
-  -v $(pwd)/input:/data -w /data \
+  -v `pwd`/input:/data -w /data \
   cim-atpg:latest \
   --mode simulator S_C_faults.json Ablation.json ablation_report.html
 ```
@@ -256,13 +256,13 @@ HTML report written to: compare_report.html
 ```bash
 # Step 1: 產生最佳 March Test
 docker run --rm -it \
-  -v $(pwd)/data:/data -w /data \
+  -v `pwd`/data:/data -w /data \
   cim-atpg:latest \
   --mode generate faults.json generated.json generated.html --max-slots 4 --max-L 6
 
 # Step 2: 將產生的結果與其他 March Test 比較
 docker run --rm -it \
-  -v $(pwd)/data:/data -w /data \
+  -v `pwd`/data:/data -w /data \
   cim-atpg:latest \
   --mode simulator faults.json generated.json comparison.html
 ```
@@ -272,7 +272,7 @@ docker run --rm -it \
 ```bash
 # 準備 Compare.json 包含要比較的 March Test
 docker run --rm -it \
-  -v $(pwd)/input:/data -w /data \
+  -v `pwd`/input:/data -w /data \
   cim-atpg:latest \
   --mode simulator S_C_faults.json Compare.json paper_comparison.html
 ```
@@ -291,16 +291,16 @@ mkdir -p host_out_generate host_out_sim
 
 # Generate：把容器的 /out 掛載到本機，並把輸出寫到 /out
 docker run --rm -it \
-  -v $(pwd)/input:/data \
-  -v $(pwd)/host_out_generate:/out \
+  -v `pwd`/input:/data \
+  -v `pwd`/host_out_generate:/out \
   -w /data \
   cim-atpg:latest \
   --mode generate S_C_faults.json /out/gs.json /out/gs.html
 
 # Simulator：同樣寫到 /out
 docker run --rm -it \
-  -v $(pwd)/input:/data \
-  -v $(pwd)/host_out_sim:/out \
+  -v `pwd`/input:/data \
+  -v `pwd`/host_out_sim:/out \
   -w /data \
   cim-atpg:latest \
   --mode simulator S_C_faults.json Compare.json /out/compare.html
@@ -310,12 +310,12 @@ docker run --rm -it \
 
 ```bash
 docker run --rm -it \
-  -v $(pwd)/input:/work -w /work \
+  -v `pwd`/input:/work -w /work \
   cim-atpg:latest \
   --mode generate S_C_faults.json out.json out.html
 ```
 
-權限小提示：若輸出檔在本機顯示 root 擁有者，可加入 `-u $(id -u):$(id -g)` 以你目前使用者身分寫檔。
+權限小提示：若輸出檔在本機顯示 root 擁有者，可加入 ``-u `id -u`:`id -g``` 以你目前使用者身分寫檔。
 
 
 ## 🔧 故障排除
@@ -345,8 +345,8 @@ docker run --rm cim-atpg:latest --mode simulator --help
 
 ```bash
 docker run --rm -it \
-  -u $(id -u):$(id -g) \
-  -v $(pwd)/data:/data -w /data \
+  -u `id -u`:`id -g` \
+  -v `pwd`/data:/data -w /data \
   cim-atpg:latest ...
 ```
 
