@@ -19,7 +19,7 @@
   - [Simulator 模式](#simulator-模式---模擬分析-march-test)
 - [完整範例](#-完整範例)
 - [輸入/輸出格式](#-輸入輸出格式)
-- [雲端部署指南](#-雲端部署指南)
+- [指定本機輸出路徑](#-指定本機輸出路徑)
 - [故障排除](#-故障排除)
 
 ---
@@ -44,7 +44,7 @@
 
 ```bash
 # 1. 建置映像檔
-docker build -f docker/Dockerfile.GreedySweep -t cim-atpg:latest .
+docker build -f docker/Dockerfile -t cim-atpg:latest .
 
 # 2. 查看說明
 docker run --rm cim-atpg:latest --help
@@ -71,7 +71,7 @@ docker run --rm -it \
 ```
 your_project/
 ├── docker/
-│   └── Dockerfile.GreedySweep
+│   └── Dockerfile
 ├── include/
 │   ├── FaultSimulator.hpp
 │   ├── FpParserAndTpGen.hpp
@@ -86,7 +86,7 @@ your_project/
 ### Build 指令
 
 ```bash
-docker build -f docker/Dockerfile.GreedySweep -t cim-atpg:latest .
+docker build -f docker/Dockerfile -t cim-atpg:latest .
 ```
 
 ---
@@ -279,27 +279,44 @@ docker run --rm -it \
 
 ---
 
-## ☁️ 雲端部署指南
+## 📦 指定本機輸出路徑
 
-### ITRI 雲端平台
+你可以透過 Volume 掛載，將容器輸出直接寫到本機資料夾。
+
+方式 A：專用輸出目錄（建議）
 
 ```bash
-# 模擬雲端掛載路徑
+# 建立本機輸出資料夾
+mkdir -p host_out_generate host_out_sim
+
+# Generate：把容器的 /out 掛載到本機，並把輸出寫到 /out
 docker run --rm -it \
-  -v /cloud/storage/user/project:/mnt/vol/data/my_project \
-  -w /mnt/vol/data/my_project \
+  -v $(pwd)/input:/data \
+  -v $(pwd)/host_out_generate:/out \
+  -w /data \
   cim-atpg:latest \
-  --mode generate faults.json output.json output.html
+  --mode generate S_C_faults.json /out/gs.json /out/gs.html
+
+# Simulator：同樣寫到 /out
+docker run --rm -it \
+  -v $(pwd)/input:/data \
+  -v $(pwd)/host_out_sim:/out \
+  -w /data \
+  cim-atpg:latest \
+  --mode simulator S_C_faults.json Compare.json /out/compare.html
 ```
 
-### 上傳至 Container Registry
+方式 B：工作目錄即輸出位置（輕量）
 
 ```bash
-docker tag cim-atpg:latest your-registry.azurecr.io/cim-atpg:v1
-docker push your-registry.azurecr.io/cim-atpg:v1
+docker run --rm -it \
+  -v $(pwd)/input:/work -w /work \
+  cim-atpg:latest \
+  --mode generate S_C_faults.json out.json out.html
 ```
 
----
+權限小提示：若輸出檔在本機顯示 root 擁有者，可加入 `-u $(id -u):$(id -g)` 以你目前使用者身分寫檔。
+
 
 ## 🔧 故障排除
 
