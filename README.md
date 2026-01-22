@@ -354,4 +354,4 @@ docker run --rm -it \
 
 ## 📄 授權資訊
 
-Copyright © 2026 NCU CIM Lab. All rights reserved.
+Copyright © 2026 NCU EDA Lab. All rights reserved.
