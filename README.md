@@ -47,16 +47,16 @@
 docker build -f docker/Dockerfile -t cim-atpg:latest .
 
 # 2. 查看說明
-docker run --rm cim-atpg:latest --help
+docker run --rm --network=host cim-atpg:latest --help
 
 # 3. Generate 模式 - 產生 March Test
-docker run --rm -it \
+docker run --rm -it --network=host \
   -v `pwd`/input:/data -w /data \
   cim-atpg:latest \
   --mode generate S_C_faults.json output.json output.html
 
 # 4. Simulator 模式 - 分析現有 March Test
-docker run --rm -it \
+docker run --rm -it --network=host \
   -v `pwd`/input:/data -w /data \
   cim-atpg:latest \
   --mode simulator S_C_faults.json Compare.json report.html
@@ -100,7 +100,7 @@ docker build -f docker/Dockerfile -t cim-atpg:latest .
 #### 語法
 
 ```bash
-docker run --rm -it \
+docker run --rm -it --network=host \
   -v <本機路徑>:/data -w /data \
   cim-atpg:latest \
   --mode generate <faults.json> <output.json> <output.html> [options]
@@ -122,13 +122,13 @@ docker run --rm -it \
 
 ```bash
 # 快速測試
-docker run --rm -it \
+docker run --rm -it --network=host \
   -v `pwd`/input:/data -w /data \
   cim-atpg:latest \
   --mode generate S_C_faults.json out.json out.html --max-slots 2 --max-L 2
 
 # 完整搜尋
-docker run --rm -it \
+docker run --rm -it --network=host \
   -v `pwd`/input:/data -w /data \
   cim-atpg:latest \
   --mode generate S_C_faults.json result.json result.html --max-slots 4 --max-L 6
@@ -160,7 +160,7 @@ docker run --rm -it \
 #### 語法
 
 ```bash
-docker run --rm -it \
+docker run --rm -it --network=host \
   -v <本機路徑>:/data -w /data \
   cim-atpg:latest \
   --mode simulator <faults.json> <MarchTests.json> <output.html>
@@ -178,13 +178,13 @@ docker run --rm -it \
 
 ```bash
 # 比較不同 March Test
-docker run --rm -it \
+docker run --rm -it --network=host \
   -v `pwd`/input:/data -w /data \
   cim-atpg:latest \
   --mode simulator S_C_faults.json Compare.json compare_report.html
 
 # Ablation Study
-docker run --rm -it \
+docker run --rm -it --network=host \
   -v `pwd`/input:/data -w /data \
   cim-atpg:latest \
   --mode simulator S_C_faults.json Ablation.json ablation_report.html
@@ -214,9 +214,45 @@ HTML report written to: compare_report.html
     "fault_id": "SA0",
     "category": "either_read_or_compute",
     "cell_scope": "single cell",
-    "fault_primitives": ["< 1D/0D/-/- >"]
+    "fault_primitives": ["< 1D/0D/-/- >", "< 0Ci; 1D/0D/-/- >"]
   }
 ]
+```
+
+#### 參數說明
+
+| 欄位 | 可選值 | 說明 |
+|-----|--------|------|
+| `fault_id` | 任意字串 | 錯誤識別名稱（如 SA0, SA1, TF, CF 等） |
+| `category` | `either_read_or_compute`<br>`must_read`<br>`must_compute` | 錯誤觸發條件：<br>• `either_read_or_compute`: 讀取或運算時均可觸發<br>• `must_read`: 僅在讀取操作時觸發<br>• `must_compute`: 僅在運算操作時觸發 |
+| `cell_scope` | `single cell`<br>`coupling` | 錯誤影響範圍：<br>• `single cell`: 單一記憶體單元錯誤<br>• `coupling`: 多個記憶體單元間的耦合錯誤 |
+| `fault_primitives` | 陣列 | 錯誤原型定義列表（見下方語法說明） |
+
+#### Fault Primitives 語法
+
+**基本格式**：`< [aggressor_cell;] victim_cell >`
+
+- **Aggressor Cell**（左側，可選）：導致錯誤的干擾單元
+- **Victim Cell**（右側，必要）：受影響的受害單元
+- 使用 `;` 分隔 aggressor 與 victim（單一單元錯誤可省略 aggressor）
+
+**狀態表示法**：
+
+| 符號 | 意義 | 範例 |
+|-----|------|------|
+| `D` | Memory 資料值 | `0D`（記憶體儲存 0）、`1D`（記憶體儲存 1） |
+| `Ci` | Computing Input 值 | `0Ci`（運算輸入 0）、`1Ci`（運算輸入 1） |
+| `-` | Don't care（任意值） | `-/-/-/-` |
+| `/` | 狀態分隔符 | 分隔四個時間/操作狀態 |
+
+**範例解析**：
+
+```json
+"< 1D/0D/-/- >"           // 單一單元：記憶體值從 1 變 0
+"< 0Ci; 1D/0D/-/- >"      // 耦合錯誤：當 aggressor 輸入 0Ci 時，
+                          // victim 的記憶體值從 1D 變 0D
+"< 0D/1D/-/-; -/-/-/1D >" // Aggressor 從 0D→1D 時，
+                          // victim 被寫入錯誤值 1D
 ```
 
 ### March Test 格式 (MarchTests.json)
@@ -255,13 +291,13 @@ HTML report written to: compare_report.html
 
 ```bash
 # Step 1: 產生最佳 March Test
-docker run --rm -it \
+docker run --rm -it --network=host \
   -v `pwd`/data:/data -w /data \
   cim-atpg:latest \
   --mode generate faults.json generated.json generated.html --max-slots 4 --max-L 6
 
 # Step 2: 將產生的結果與其他 March Test 比較
-docker run --rm -it \
+docker run --rm -it --network=host \
   -v `pwd`/data:/data -w /data \
   cim-atpg:latest \
   --mode simulator faults.json generated.json comparison.html
@@ -271,7 +307,7 @@ docker run --rm -it \
 
 ```bash
 # 準備 Compare.json 包含要比較的 March Test
-docker run --rm -it \
+docker run --rm -it --network=host \
   -v `pwd`/input:/data -w /data \
   cim-atpg:latest \
   --mode simulator S_C_faults.json Compare.json paper_comparison.html
@@ -290,7 +326,7 @@ docker run --rm -it \
 mkdir -p host_out_generate host_out_sim
 
 # Generate：把容器的 /out 掛載到本機，並把輸出寫到 /out
-docker run --rm -it \
+docker run --rm -it --network=host \
   -v `pwd`/input:/data \
   -v `pwd`/host_out_generate:/out \
   -w /data \
@@ -298,7 +334,7 @@ docker run --rm -it \
   --mode generate S_C_faults.json /out/gs.json /out/gs.html
 
 # Simulator：同樣寫到 /out
-docker run --rm -it \
+docker run --rm -it --network=host \
   -v `pwd`/input:/data \
   -v `pwd`/host_out_sim:/out \
   -w /data \
@@ -309,7 +345,7 @@ docker run --rm -it \
 方式 B：工作目錄即輸出位置（輕量）
 
 ```bash
-docker run --rm -it \
+docker run --rm -it --network=host \
   -v `pwd`/input:/work -w /work \
   cim-atpg:latest \
   --mode generate S_C_faults.json out.json out.html
@@ -329,7 +365,7 @@ docker run --rm -it \
 使用 `-it` 參數啟用即時輸出：
 
 ```bash
-docker run --rm -it ...
+docker run --rm -it --network=host ...
 ```
 
 ### Q3: 找不到模式
@@ -337,14 +373,14 @@ docker run --rm -it ...
 確認使用 `--mode generate` 或 `--mode simulator`：
 
 ```bash
-docker run --rm cim-atpg:latest --mode generate --help
-docker run --rm cim-atpg:latest --mode simulator --help
+docker run --rm --network=host cim-atpg:latest --mode generate --help
+docker run --rm --network=host cim-atpg:latest --mode simulator --help
 ```
 
 ### Q4: 輸出檔案權限為 root
 
 ```bash
-docker run --rm -it \
+docker run --rm -it --network=host \
   -u `id -u`:`id -g` \
   -v `pwd`/data:/data -w /data \
   cim-atpg:latest ...
