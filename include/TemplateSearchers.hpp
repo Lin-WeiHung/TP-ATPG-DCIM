@@ -22,6 +22,7 @@
 #include <sstream>
 #include <cstddef>
 #include <queue>
+#include <random>    // v5: for multi-start noise
 
 #include "FaultSimulator.hpp" // uses your existing simulator types & simulate(). :contentReference[oaicite:1]{index=1}
 
@@ -424,6 +425,38 @@ public:
 
     // Run greedy for skeleton length L. Returns chosen CandidateResult (single best path)
     CandidateResult run(size_t L) {
+        return run_internal_(L, nullptr);
+    }
+
+    // v5: Multi-start greedy — run multiple times with score perturbation, return best.
+    //     First run is deterministic (original greedy); subsequent runs add Gaussian noise
+    //     to the scorer to explore alternative paths.
+    CandidateResult run_multistart(size_t L, int num_starts = 5, double noise_scale = 0.03) {
+        // First run: deterministic (identical to original run())
+        CandidateResult best = run_internal_(L, nullptr);
+        if (num_starts <= 1 || best.sim_result.total_coverage >= 1.0 - 1e-9) return best;
+
+        std::mt19937 rng(std::random_device{}());
+        std::normal_distribution<double> dist(0.0, noise_scale);
+        std::function<double()> noise_fn = [&]() -> double { return dist(rng); };
+
+        for (int i = 1; i < num_starts; ++i) {
+            CandidateResult result = run_internal_(L, &noise_fn);
+            // Re-score without noise for fair comparison
+            result.score = scorer_(result.sim_result, result.march_test);
+            if (result.sim_result.total_coverage > best.sim_result.total_coverage ||
+                (std::abs(result.sim_result.total_coverage - best.sim_result.total_coverage) < 1e-9
+                 && result.score > best.score)) {
+                best = std::move(result);
+            }
+            if (best.sim_result.total_coverage >= 1.0 - 1e-9) break; // early exit on 100%
+        }
+        return best;
+    }
+
+private:
+    // v5: Internal greedy with optional score noise function
+    CandidateResult run_internal_(size_t L, std::function<double()>* noise_fn) {
         CandidateResult best_overall;
         best_overall.score = -std::numeric_limits<double>::infinity();
 
@@ -469,6 +502,8 @@ public:
                     // simulate trial_mt against current (static) fault list to get coverage
                     SimulationResult simres = sim_.simulate(trial_mt, faults_, tps_);
                     double score = scorer_(simres, trial_mt); // v2: use pluggable scorer
+                    // v5: add noise for multi-start exploration
+                    if (noise_fn) score += (*noise_fn)();
 
                     if (score > best_score_this_pos) {
                         best_score_this_pos = score;
@@ -508,7 +543,6 @@ public:
         return best_overall;
     }
 
-private:
     FaultSimulator& sim_;
     const TemplateLibrary& lib_;
     const vector<Fault>& faults_;
