@@ -30,12 +30,12 @@
 
 | 模式 | 功能 | 輸入 | 輸出 |
 |-----|------|------|------|
-| **Generate** | 使用貪婪搜尋產生最佳 March Test | 錯誤模型 JSON | JSON + HTML 報表 |
-| **Simulator** | 模擬現有 March Test 的覆蓋率 | 錯誤模型 + March Test JSON | HTML 分析報表 |
+| **Generate** | 貪婪搜尋 + 自動精煉，產生最佳 March Test | 錯誤模型 JSON | JSON + 互動式 HTML 報表 |
+| **Simulator** | 模擬現有 March Test 的覆蓋率 | 錯誤模型 + March Test JSON | 互動式 HTML 分析報表 |
 
 ### 適用情境
 
-- 🧪 **Generate 模式**：自動搜尋最佳測試向量、參數空間探索
+- 🧪 **Generate 模式**：自動搜尋最佳測試向量，並在未達 100% 時自動精煉 (refine)
 - 📊 **Simulator 模式**：比較不同 March Test 的覆蓋率、論文實驗分析
 
 ---
@@ -75,8 +75,7 @@ your_project/
 ├── include/
 │   ├── FaultSimulator.hpp
 │   ├── FpParserAndTpGen.hpp
-│   ├── TemplateSearchers.hpp
-│   └── TemplateSearchReport.hpp
+│   └── TemplateSearchers.hpp
 └── src/
     ├── main.cpp
     ├── GreedySweepRunner.cpp
@@ -95,7 +94,7 @@ docker build -f docker/Dockerfile -t cim-atpg:latest .
 
 ### Generate 模式 - 產生最佳 March Test
 
-使用貪婪搜尋演算法，自動產生高覆蓋率的 March Test 序列。
+使用貪婪搜尋演算法，掃描 (slots, L) 組合空間，自動產生高覆蓋率的 March Test 序列。若掃描後未達 100% 覆蓋率，會自動以更大的模板庫 (slots+1) 進行精煉 (refine)，逐一替換元素以提升覆蓋率。最終輸出與 Simulator 模式相同的互動式 HTML 報表。
 
 #### 語法
 
@@ -115,8 +114,11 @@ docker run --rm -it --network=host \
 | `output.html` | `output/GreedySweep_Bests.html` | 輸出 HTML |
 | `--start-slots` | 1 | 起始 slots 數 |
 | `--start-L` | 1 | 起始 L 數 |
-| `--max-slots` | 4 | 最大 slots 數 |
-| `--max-L` | 6 | 最大 L 數 |
+| `--max-slots` | 4 | 最大 slots 數（單一 element 最大 op 數） |
+| `--max-L` | 6 | 最大 L 數（最大 element 數量） |
+| `--w-state` | 0.9 | state_coverage 權重 |
+| `--w-total` | 0.5 | total_coverage 權重 |
+| `--op-penalty` | 0.01 | op 數量懲罰係數 |
 
 #### 範例
 
@@ -132,24 +134,39 @@ docker run --rm -it --network=host \
   -v `pwd`/input:/data -w /data \
   cim-atpg:latest \
   --mode generate S_C_faults.json result.json result.html --max-slots 4 --max-L 6
+
+# 自訂評分權重
+docker run --rm -it --network=host \
+  -v `pwd`/input:/data -w /data \
+  cim-atpg:latest \
+  --mode generate S_C_faults.json result.json result.html --w-state 0.8 --w-total 0.6 --op-penalty 0.02
 ```
 
 #### 輸出範例
 
 ```
-[Sweep] max_slots=2, max_L=2, valid configs=4
-[Sweep] (1/4) slots=1, L=1 (ops=1) -> cov=0.0000% [0 ms]
-[Sweep] (2/4) slots=1, L=2 (ops=2) -> cov=11.7647% [0 ms]
-[Sweep] (3/4) slots=2, L=1 (ops=2) -> cov=0.0000% [0 ms]
-[Sweep] (4/4) slots=2, L=2 (ops=4) -> cov=27.9412% [3 ms]
-[Sweep] JSON written: out.json (4 items)
+[Sweep] max_slots=3, max_L=6, valid configs=18
+[Sweep] (1/18) slots=1, L=1 (ops=1) -> cov=0.0000% [0 ms]
+...
+[Sweep] (18/18) slots=3, L=6 (ops=18) -> cov=95.5882% [534 ms]
+
+[Refine] === Fine-tuning best result via local search ===
+[Refine] Greedy best slots=3, refine slots=4
+[Refine] Before: 95.5882%
+[Refine] After:  100.0000%
+[Refine] Improvement: 4.4118 pp
+[Refine] Elapsed: 17588 ms
 
 [Sweep] === Summary ===
-[Sweep] Configs tested: 4/4
-[Sweep] Best coverage: 27.9412%
-[Sweep] Best config: Best_slots2_L2
+[Sweep] Configs tested: 18/18
+[Sweep] Best coverage: 100.0000%
+[Sweep] Best config: current pattern 2026-03-10
 [Sweep] Reached 100%: No
+[Sweep] Total elapsed: 19154 ms
+[Sweep] HTML written: output/GreedySweep_Bests.html
 ```
+
+> **Note**: 若貪婪搜尋已達 100% 覆蓋率，精煉步驟會自動跳過。
 
 ---
 
@@ -272,13 +289,15 @@ HTML report written to: compare_report.html
 
 ### Generate 輸出 (output.json)
 
+最終結果（經精煉後的最佳 March Test）：
+
 ```json
 [
   {
-    "March_test": "Best_slots2_L2",
-    "Pattern": "a(W0); a(W1, C(1)(1)(1));",
-    "state_coverage": 0.75,
-    "total_coverage": 0.2794
+    "March_test": "current pattern 2026-03-10",
+    "Pattern": "a(W0); a(W1, C(1)(1)(0)); a(C(1)(1)(1), W0, C(1)(1)(0)); ...",
+    "state_coverage": 1.0,
+    "total_coverage": 1.0
   }
 ]
 ```

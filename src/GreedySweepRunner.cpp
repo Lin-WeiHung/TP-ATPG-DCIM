@@ -15,9 +15,16 @@
 #include <nlohmann/json.hpp>
 
 #include "TemplateSearchers.hpp"
-#include "TemplateSearchReport.hpp"
 #include "FpParserAndTpGen.hpp"
 #include "FaultSimulator.hpp"
+
+// Shared HTML report writer from FaultSimulationEvent.cpp
+void write_simulator_html_report(
+    const std::vector<MarchTest>& marchTests,
+    const std::vector<Fault>& faults,
+    const std::vector<TestPrimitive>& all_tps,
+    const std::vector<RawFault>& raw_faults,
+    const std::string& output_html);
 
 using css::template_search::TemplateLibrary;
 using css::template_search::GreedyTemplateSearcher;
@@ -94,7 +101,10 @@ int run_greedy_sweep(int argc, char** argv){
                   << "  --start-slots N : 起始 slots 數 (預設 1)\n"
                   << "  --start-L M     : 起始 L 數 (預設 1)\n"
                   << "  --max-slots X   : 單一 element 最大 op 數 (預設 4)\n"
-                  << "  --max-L Y       : 最大 element 數量 (預設 6)\n\n"
+                  << "  --max-L Y       : 最大 element 數量 (預設 6)\n"
+                  << "  --w-state W     : state_coverage 權重 (預設 0.9)\n"
+                  << "  --w-total W     : total_coverage 權重 (預設 0.5)\n"
+                  << "  --op-penalty P  : op 數量懲罰 (預設 0.01)\n\n"
                   << "範例:\n"
                   << "  cim-atpg --mode generate\n"
                   << "  cim-atpg --mode generate faults.json out.json out.html\n"
@@ -104,12 +114,24 @@ int run_greedy_sweep(int argc, char** argv){
 
     // 解析參數 - 設定預設值
     std::string faults_path = "input/S_C_faults.json";
-    std::string out_json = "output/GreedySweep_Bests.json";
-    std::string out_html = "output/GreedySweep_Bests.html";
+    std::string out_json, out_html;
+    {
+        auto now = std::chrono::system_clock::now();
+        std::time_t t = std::chrono::system_clock::to_time_t(now);
+        std::tm tm_buf{};
+        localtime_r(&t, &tm_buf);
+        char ts[64];
+        std::strftime(ts, sizeof(ts), "G_%Y%m%d_%H_%M_%S", &tm_buf);
+        out_json = std::string("output/") + ts + ".json";
+        out_html = std::string("output/") + ts + ".html";
+    }
     std::size_t start_slots = 1;
     std::size_t start_L = 1;
     std::size_t max_slots = 4;  // 預設 max_slots=4
     std::size_t max_L = 6;      // 預設 max_L=6
+    double w_state = 0.9;
+    double w_total = 0.5;
+    double op_penalty_val = 0.01;
 
     // 解析位置參數與選項
     int argi = 1;
@@ -129,6 +151,12 @@ int run_greedy_sweep(int argc, char** argv){
             max_slots = static_cast<std::size_t>(std::stoull(argv[++argi]));
         } else if (arg == "--max-L" && argi + 1 < argc) {
             max_L = static_cast<std::size_t>(std::stoull(argv[++argi]));
+        } else if (arg == "--w-state" && argi + 1 < argc) {
+            w_state = std::stod(argv[++argi]);
+        } else if (arg == "--w-total" && argi + 1 < argc) {
+            w_total = std::stod(argv[++argi]);
+        } else if (arg == "--op-penalty" && argi + 1 < argc) {
+            op_penalty_val = std::stod(argv[++argi]);
         }
         ++argi;
     }
@@ -147,14 +175,21 @@ int run_greedy_sweep(int argc, char** argv){
     auto tps    = gen_tps(faults);
     FaultSimulator sim;
 
+    // Also load raw faults for simulator-style HTML report
+    std::vector<RawFault> raw_faults;
+    {
+        FaultsJsonParser p;
+        raw_faults = p.parse_file(faults_path);
+    }
+
     // Collect per-configuration bests
     std::vector<CandidateResult> per_cfg_bests;
     CandidateResult overall_best;
     double best_coverage = 0.0;
     bool reached_100 = false;
+    std::size_t best_slots = 1;
 
     auto t_all0 = std::chrono::steady_clock::now();
-    long long total_greedy_ms = 0;
 
     // 快取 TemplateLibrary（避免重複建立）
     std::unordered_map<std::size_t, TemplateLibrary> lib_cache;
@@ -176,7 +211,7 @@ int run_greedy_sweep(int argc, char** argv){
         constraints.add(std::make_shared<DataReadPolarityConstraint>());
 
         // scorer: prioritize state coverage, use total coverage as secondary, penalize op count
-        auto scorer = css::template_search::make_score_state_total_ops(0.9, 0.5, 0.01);
+        auto scorer = css::template_search::make_score_state_total_ops(w_state, w_total, op_penalty_val);
 
         GreedyTemplateSearcher searcher(
             sim, lib, faults, tps,
@@ -190,7 +225,6 @@ int run_greedy_sweep(int argc, char** argv){
         CandidateResult best = searcher.run(L);
         auto t1 = std::chrono::steady_clock::now();
         auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
-        total_greedy_ms += elapsed_ms;
 
         if (best.march_test.elements.size() > 0) {
             best.march_test.name = std::string("Best_slots") + std::to_string(slots) + "_L" + std::to_string(L);
@@ -206,6 +240,7 @@ int run_greedy_sweep(int argc, char** argv){
             if (cov > best_coverage) {
                 best_coverage = cov;
                 overall_best = best;
+                best_slots = slots;
             }
 
             // 檢查是否達到 100% 覆蓋率
@@ -220,44 +255,7 @@ int run_greedy_sweep(int argc, char** argv){
         }
     }
 
-    // Fallback: if not reached 100%, use the hardcoded Proposed Method pattern
-    if (!reached_100) {
-        const std::string proposed_pattern =
-            "a(W0); a(C(1)(1)(1), W1, C(0)(0)(0), C(0)(1)(0)); a(C(0)(1)(0), R1, W0, C(0)(0)(0)); a(R0); d(C(0)(1)(0), W1, C(1)(1)(1)); d(C(0)(1)(0), W0, C(0)(1)(1));";
-        RawMarchTest raw_mt;
-        raw_mt.name = "Best_slots4_L6";
-        raw_mt.pattern = proposed_pattern;
-        MarchTestNormalizer normalizer;
-        MarchTest fallback_mt = normalizer.normalize(raw_mt);
-        SimulationResult fallback_sim = sim.simulate(fallback_mt, faults, tps);
-        double fallback_cov = fallback_sim.total_coverage;
-
-        CandidateResult fallback_cr;
-        fallback_cr.march_test = fallback_mt;
-        fallback_cr.sim_result = fallback_sim;
-        fallback_cr.score = 999.0;
-
-        // Replace or add as the best result
-        per_cfg_bests.push_back(fallback_cr);
-        if (fallback_cov > best_coverage) {
-            best_coverage = fallback_cov;
-            overall_best = fallback_cr;
-        }
-        if (fallback_cov >= 1.0 - 1e-9) {
-            reached_100 = true;
-        }
-
-        // Print as if it was found in the last config
-        std::cout << "[Sweep] (" << configs.size() << "/" << configs.size() << ") "
-                  << "slots=4, L=6 (ops=24) "
-                  << "-> cov=" << std::fixed << std::setprecision(4) << (fallback_cov * 100.0) << "% \n";
-        if (reached_100) {
-            std::cout << "\n[Sweep] *** 100% coverage achieved! Early termination. ***\n";
-        }
-    }
-
-    auto t_all1 = std::chrono::steady_clock::now();
-    auto sweep_ms = std::chrono::duration_cast<std::chrono::milliseconds>(t_all1 - t_all0).count();
+    // Fallback disabled — investigate score weights to achieve 100% organically
 
     if (per_cfg_bests.empty()) {
         std::cerr << "[Sweep] No candidate found. Check constraints or parameters.\n";
@@ -280,7 +278,62 @@ int run_greedy_sweep(int argc, char** argv){
         return a.sim_result.total_coverage > b.sim_result.total_coverage;
     });
 
-    // 1) Export to JSON
+    // =========================================================
+    // Refine: Fine-tuning (local search) on the best result
+    // =========================================================
+    if (!reached_100) {
+        std::cout << "\n[Refine] === Fine-tuning best result via local search ===\n";
+
+        std::size_t refine_slots = best_slots + 1;
+
+        if (lib_cache.find(refine_slots) == lib_cache.end()) {
+            lib_cache.emplace(refine_slots, TemplateLibrary::make_bruce(refine_slots));
+        }
+        const auto& refine_lib = lib_cache.at(refine_slots);
+
+        SequenceConstraintSet refine_constraints;
+        refine_constraints.add(std::make_shared<FirstElementWriteOnlyConstraint>());
+        refine_constraints.add(std::make_shared<DataReadPolarityConstraint>());
+
+        auto refine_scorer = css::template_search::make_score_state_total_ops(w_state, w_total, op_penalty_val);
+
+        GreedyTemplateSearcher refine_searcher(
+            sim, refine_lib, faults, tps,
+            std::make_unique<ValueExpandingGenerator>(),
+            refine_scorer,
+            &refine_constraints
+        );
+
+        auto t_ref0 = std::chrono::steady_clock::now();
+        CandidateResult refined = refine_searcher.refine(overall_best, 3);
+        auto t_ref1 = std::chrono::steady_clock::now();
+        auto refine_ms = std::chrono::duration_cast<std::chrono::milliseconds>(t_ref1 - t_ref0).count();
+
+        std::cout << "[Refine] Greedy best slots=" << best_slots
+                  << ", refine slots=" << refine_slots << "\n";
+        std::cout << "[Refine] Before: " << std::fixed << std::setprecision(4)
+                  << (overall_best.sim_result.total_coverage * 100.0) << "%\n";
+        std::cout << "[Refine] After:  " << std::fixed << std::setprecision(4)
+                  << (refined.sim_result.total_coverage * 100.0) << "%\n";
+        std::cout << "[Refine] Improvement: "
+                  << std::fixed << std::setprecision(4)
+                  << ((refined.sim_result.total_coverage - overall_best.sim_result.total_coverage) * 100.0)
+                  << " pp\n";
+        std::cout << "[Refine] Elapsed: " << refine_ms << " ms\n";
+
+        // Update overall_best if refined is better
+        if (refined.sim_result.total_coverage > overall_best.sim_result.total_coverage) {
+            overall_best = refined;
+            best_coverage = refined.sim_result.total_coverage;
+        }
+    } else {
+        std::cout << "\n[Refine] Skipped (already 100% coverage)\n";
+    }
+
+    auto t_all1 = std::chrono::steady_clock::now();
+    auto total_ms = std::chrono::duration_cast<std::chrono::milliseconds>(t_all1 - t_all0).count();
+
+    // 1) Export final result to JSON
     auto op_to_pattern_token = [](const Op& op) -> std::string {
         switch (op.kind) {
             case OpKind::Read:
@@ -312,62 +365,40 @@ int run_greedy_sweep(int argc, char** argv){
         return oss.str();
     };
 
-    nlohmann::json arr = nlohmann::json::array();
-    for (const auto& cr : per_cfg_bests) {
+    {
         std::ostringstream pattern;
-        for (size_t i = 0; i < cr.march_test.elements.size(); ++i) {
-            pattern << build_pattern_element(cr.march_test.elements[i]) << ';';
-            if (i + 1 < cr.march_test.elements.size())
+        for (size_t i = 0; i < overall_best.march_test.elements.size(); ++i) {
+            pattern << build_pattern_element(overall_best.march_test.elements[i]) << ';';
+            if (i + 1 < overall_best.march_test.elements.size())
                 pattern << ' ';
         }
-        
+
         nlohmann::json obj;
-        obj["March_test"] = cr.march_test.name;
+        obj["March_test"] = overall_best.march_test.name;
         obj["Pattern"] = pattern.str();
-        obj["total_coverage"] = cr.sim_result.total_coverage;
-        obj["state_coverage"] = cr.sim_result.state_coverage;
+        obj["total_coverage"] = overall_best.sim_result.total_coverage;
+        obj["state_coverage"] = overall_best.sim_result.state_coverage;
+        nlohmann::json arr = nlohmann::json::array();
         arr.push_back(std::move(obj));
-    }
-    
-    // Write JSON file
-    {
+
         auto parent = std::filesystem::path(out_json).parent_path();
         if (!parent.empty()) {
             std::error_code ec;
             std::filesystem::create_directories(parent, ec);
-            if (ec) {
-                std::cerr << "[Sweep] Warning: cannot create JSON parent directory '" << parent.string()
-                          << "' : " << ec.message() << "\n";
-            }
         }
-    }
-    std::ofstream ofs(out_json);
-    if (ofs.is_open()) {
-        ofs << arr.dump(2);
-        std::cout << "[Sweep] JSON written: " << out_json
-                  << " (" << per_cfg_bests.size() << " items)\n";
-    } else {
-        std::cerr << "[Sweep] Failed to write JSON: " << out_json << "\n";
+        std::ofstream ofs(out_json);
+        if (ofs.is_open()) {
+            ofs << arr.dump(2);
+            std::cout << "[Output] JSON written: " << out_json << "\n";
+        } else {
+            std::cerr << "[Output] Failed to write JSON: " << out_json << "\n";
+        }
     }
 
-    // 2) Render HTML
+    // 2) Render simulator-style interactive HTML for the final result only
     {
-        auto html_parent = std::filesystem::path(out_html).parent_path();
-        if (!html_parent.empty()) {
-            std::error_code ec;
-            std::filesystem::create_directories(html_parent, ec);
-            if (ec) {
-                std::cerr << "[Sweep] Warning: cannot create HTML parent directory '" << html_parent.string()
-                          << "' : " << ec.message() << "\n";
-            }
-        }
-    }
-    // HTML report: only output the best result
-    {
-        std::vector<CandidateResult> best_only = { overall_best };
-        TemplateSearchReport report;
-        ScoreWeights default_weights;
-        report.gen_html_with_op_scores(best_only, out_html, default_weights, 0.0, false, tps);
+        std::vector<MarchTest> final_tests = { overall_best.march_test };
+        write_simulator_html_report(final_tests, faults, tps, raw_faults, out_html);
     }
 
     // Summary
@@ -378,8 +409,8 @@ int run_greedy_sweep(int argc, char** argv){
         std::cout << "[Sweep] Best config: " << overall_best.march_test.name << "\n";
     }
     std::cout << "[Sweep] Reached 100%: " << (reached_100 ? "Yes" : "No") << "\n";
-    std::cout << "[Sweep] Total elapsed: " << sweep_ms << " ms, greedy time: " << total_greedy_ms << " ms\n";
+    std::cout << "[Sweep] Total elapsed: " << total_ms << " ms\n";
     std::cout << "[Sweep] HTML written: " << out_html << "\n";
-    
+
     return 0;
 }

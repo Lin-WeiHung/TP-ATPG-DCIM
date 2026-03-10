@@ -14,6 +14,7 @@
 #include <vector>
 #include <filesystem>
 #include <chrono>
+#include <ctime>
 
 #include "../include/FaultSimulator.hpp" // now provides TPEvent, TPEventCenter, SimulationEventResult, FaultSimulatorEvent
 
@@ -198,7 +199,7 @@ static void write_events_tab(std::ostream& ofs, const SimulationEventResult& sim
 
 struct CmdOptions { string faults_json; string march_json; string output_html; };
 
-static void print_simulator_help(const char* prog) {
+static void print_simulator_help(const char* /*prog*/) {
     std::cerr << "Simulator Mode - March Test Fault Simulation\n\n"
               << "Usage: cim-atpg --mode simulator <faults.json> <MarchTests.json> <output.html>\n\n"
               << "Arguments:\n"
@@ -219,14 +220,24 @@ static bool parse_args(int argc, char** argv, CmdOptions& opt){
         print_simulator_help(argv[0]);
         return false;
     }
-    if (argc != 4) {
-        std::cerr << "Error: Simulator mode requires exactly 3 arguments\n\n";
+    if (argc < 3 || argc > 4) {
+        std::cerr << "Error: Simulator mode requires 2 or 3 arguments\n\n";
         print_simulator_help(argv[0]);
         return false;
     }
     opt.faults_json = argv[1];
     opt.march_json = argv[2];
-    opt.output_html = argv[3];
+    if (argc == 4) {
+        opt.output_html = argv[3];
+    } else {
+        auto now = std::chrono::system_clock::now();
+        std::time_t t = std::chrono::system_clock::to_time_t(now);
+        std::tm tm_buf{};
+        localtime_r(&t, &tm_buf);
+        char ts[64];
+        std::strftime(ts, sizeof(ts), "S_%Y%m%d_%H_%M_%S", &tm_buf);
+        opt.output_html = std::string("output/") + ts + ".html";
+    }
     return true;
 }
 
@@ -434,6 +445,191 @@ static void write_html_head(std::ostream& ofs, size_t faults_n, size_t tps_n, si
     ofs << "</head><body>\n";
     ofs << "<h1>March Simulation Report</h1>\n";
     ofs << "<p class=\"muted\">Faults: "<<faults_n<<", TPs: "<<tps_n<<", MarchTests: "<<mts_n<<"</p>\n";
+}
+
+// =============================
+// Shared HTML report writer (used by both generate & simulator modes)
+// =============================
+void write_simulator_html_report(
+    const std::vector<MarchTest>& marchTests,
+    const std::vector<Fault>& faults,
+    const std::vector<TestPrimitive>& all_tps,
+    const std::vector<RawFault>& raw_faults,
+    const std::string& output_html)
+{
+    using clock = std::chrono::steady_clock;
+    auto to_us=[](auto d){ return std::chrono::duration_cast<std::chrono::microseconds>(d).count(); };
+
+    auto parent = std::filesystem::path(output_html).parent_path();
+    if (!parent.empty()) { std::error_code ec; std::filesystem::create_directories(parent, ec); }
+
+    unordered_map<string, size_t> raw_index_by_id;
+    raw_index_by_id.reserve(raw_faults.size()*2+1);
+    for (size_t i=0;i<raw_faults.size();++i) raw_index_by_id[raw_faults[i].fault_id]=i;
+
+    std::ofstream ofs(output_html);
+    if (!ofs) throw std::runtime_error("cannot open output html: "+output_html);
+    write_html_head(ofs, faults.size(), all_tps.size(), marchTests.size());
+    write_fault_anchors(ofs, raw_faults);
+
+    FaultSimulatorEvent simulator;
+
+    struct MarchResult {
+        size_t original_idx; const MarchTest* mt; SimulationEventResult sim; long long us;
+        double avg_detect, avg_single, avg_two; size_t count_single, count_two;
+    };
+    vector<MarchResult> results; results.reserve(marchTests.size());
+
+    for (size_t mi=0; mi<marchTests.size(); ++mi){
+        const auto& mt = marchTests[mi];
+        auto tms=clock::now();
+        auto sim = simulator.simulate(mt, faults, all_tps);
+        auto tme=clock::now();
+        auto us = to_us(tme-tms);
+
+        unordered_set<size_t> detected_tp_set;
+        for (const auto& bucket : sim.events.detectDone()){ for (auto eid : bucket) detected_tp_set.insert(sim.events.events()[eid].tp_gid()); }
+
+        double sum_fault_cov=0, sum_single_cov=0, sum_two_cov=0; size_t cnt_s=0, cnt_t=0;
+        for (const auto& f : faults){
+            bool has_any=false, has_lt=false, has_gt=false;
+            for (size_t tg=0; tg<all_tps.size(); ++tg){
+                if (all_tps[tg].parent_fault_id != f.fault_id) continue;
+                if (detected_tp_set.count(tg)==0) continue;
+                auto g = all_tps[tg].group;
+                if (g==OrientationGroup::Single) has_any=true;
+                else if (g==OrientationGroup::A_LT_V) has_lt=true;
+                else if (g==OrientationGroup::A_GT_V) has_gt=true;
+            }
+            double cov = (f.cell_scope==CellScope::SingleCell) ? (has_any?1.0:0.0) : ((has_lt?0.5:0.0)+(has_gt?0.5:0.0));
+            sum_fault_cov += cov;
+            if (f.cell_scope==CellScope::SingleCell){ sum_single_cov += cov; cnt_s++; } else { sum_two_cov += cov; cnt_t++; }
+        }
+        double avg_d = faults.empty()? 0.0 : sum_fault_cov/faults.size();
+        double avg_s = cnt_s? sum_single_cov/cnt_s : 0.0;
+        double avg_t = cnt_t? sum_two_cov/cnt_t : 0.0;
+        results.push_back({mi, &mt, std::move(sim), us, avg_d, avg_s, avg_t, cnt_s, cnt_t});
+        cout << "[Report] March Test '"<< mt.name <<"': "<< us <<" us (ops="<< results.back().sim.op_table.size() <<", cov="<< std::fixed << std::setprecision(2) << (avg_d*100.0) <<"%)\n";
+    }
+
+    std::sort(results.begin(), results.end(), [](const MarchResult& a, const MarchResult& b){ return a.avg_detect > b.avg_detect; });
+
+    for (size_t mi=0; mi<results.size(); ++mi){
+        const auto& R = results[mi]; const auto& mt = *R.mt; const auto& sim = R.sim;
+        double avg_detect=R.avg_detect, avg_single=R.avg_single, avg_two=R.avg_two;
+        size_t count_single=R.count_single, count_two=R.count_two; auto us=R.us;
+
+        struct OpEvt { size_t eid; const char* type; };
+        vector<vector<OpEvt>> events_by_op(sim.op_table.size());
+        const auto& evs = sim.events.events();
+        for (size_t eid=0; eid<evs.size(); ++eid){
+            const auto& e = evs[eid];
+            if (e.state_op()>=0 && (size_t)e.state_op()<events_by_op.size()) events_by_op[e.state_op()].push_back({eid,"Stated"});
+            for (auto sop : e.sens_ops()) if (sop>=0 && (size_t)sop<events_by_op.size()) events_by_op[sop].push_back({eid,"Sensitized"});
+            if (e.det_op()>=0 && (size_t)e.det_op()<events_by_op.size()) events_by_op[e.det_op()].push_back({eid,"Detected"});
+            if (e.mask_op()>=0 && (size_t)e.mask_op()<events_by_op.size()){
+                auto s=e.final_status(); const char* t="Masked";
+                if (s==TPEvent::Status::StateMasked) t="StateMasked"; else if (s==TPEvent::Status::SensMasked) t="SensMasked"; else if (s==TPEvent::Status::DetectMasked) t="DetectMasked";
+                events_by_op[e.mask_op()].push_back({eid,t});
+            }
+        }
+
+        ofs << "<div class=\"march-section\">\n";
+        ofs << "  <div class=\"march-header\" onclick=\"toggleFaultAnalysis("<<mi<<")\">"
+            << "<span>" << html_escape(mt.name) << "</span><span>"
+            << "<span class=\"badge\" style=\"background:#555\">" << sim.op_table.size() << " Ops</span>"
+            << "<span class=\"badge\">" << std::fixed << std::setprecision(2) << (avg_detect*100.0) << "% Cov</span>"
+            << "</span></div>\n";
+
+        ofs << "  <div class=\"dashboard-row\" id=\"dash-row-"<<mi<<"\">\n";
+
+        // Stats Column
+        ofs << "    <div class=\"stats-col\">\n";
+        auto write_stat = [&](const char* label, double val, size_t count){
+            ofs << "<div class=\"stat-item\"><div class=\"stat-label\">"<<label<<"</div>"
+                << "<div class=\"stat-value\">"<< std::fixed << std::setprecision(2) << (val*100.0) << "%</div>"
+                << "<div class=\"progress-container\"><div class=\"progress-bar\" style=\"width:" << (val*100.0) << "%\"></div></div>"
+                << "<span class=\"cov-text\">" << count << " faults</span></div>";
+        };
+        write_stat("Single Cell Coverage", avg_single, count_single);
+        write_stat("Two Cell Coverage", avg_two, count_two);
+        write_stat("Total Coverage", avg_detect, faults.size());
+        ofs << "<div style=\"margin-top:auto;font-size:16px;font-weight:bold;color:#eee;padding-top:15px;border-top:1px solid #444\">Run Time: "<< us <<" us</div>\n";
+        ofs << "    </div>\n";
+
+        // Ops Column
+        ofs << "    <div class=\"ops-col\">\n";
+        ofs << "      <div class=\"ops-list\" id=\"ops-list-"<<mi<<"\">\n";
+        for (size_t i=0; i<sim.op_table.size(); ){
+            int current_elem = sim.op_table[i].elem_index; size_t j = i;
+            while(j<sim.op_table.size() && sim.op_table[j].elem_index==current_elem) j++;
+            ofs << "        <div class=\"elem-group\">\n          <div class=\"elem-marker\">Elem "<< (current_elem+1) <<"</div>\n          <div class=\"elem-ops\">\n";
+            for (size_t k=i; k<j; ++k){
+                const auto& oc = sim.op_table[k];
+                string icon = (oc.order==AddrOrder::Up)?"&uarr;":(oc.order==AddrOrder::Down)?"&darr;":"&updownarrow;";
+                auto mkBox = [&](Val d, Val c, bool active=false){ string cls = active?"state-box active":"state-box"; return "<div class=\""+cls+"\">"+v2s(d)+","+v2s(c)+"</div>"; };
+                ofs << "            <div class=\"op-row\" id=\"op-row-"<<mi<<"-"<<k<<"\">\n"
+                    << "              <div class=\"op-icon\">"<<icon<<"</div>\n"
+                    << "              <div class=\"state-viz\">\n"
+                    << mkBox(oc.pre_state.A0.D,oc.pre_state.A0.C) << mkBox(oc.pre_state.A1.D,oc.pre_state.A1.C)
+                    << mkBox(oc.pre_state.A2_CAS.D,oc.pre_state.A2_CAS.C,true)
+                    << mkBox(oc.pre_state.A3.D,oc.pre_state.A3.C) << mkBox(oc.pre_state.A4.D,oc.pre_state.A4.C)
+                    << "              </div>\n"
+                    << "              <div class=\"op-info\"><span class=\"op-text\">" << op_repr(oc.op) << "</span></div>\n"
+                    << "              <button class=\"op-btn\" onclick=\"showOpDetails("<<mi<<","<<k<<")\">" << events_by_op[k].size() << " Events</button>\n"
+                    << "            </div>\n";
+            }
+            ofs << "          </div>\n        </div>\n";
+            i = j;
+        }
+        ofs << "      </div>\n";
+        ofs << "      <div class=\"fa-toggle-container\"><button class=\"fa-btn\" onclick=\"toggleFaultAnalysis("<<mi<<")\">Fault Analysis &darr;</button></div>\n";
+        ofs << "    </div>\n";
+
+        // Details Column
+        ofs << "    <div class=\"details-col\" id=\"det-col-"<<mi<<"\">\n"
+            << "      <div class=\"details-header\"><div class=\"details-title\" id=\"det-header-content-"<<mi<<"\">Operation Events</div>"
+            << "<button class=\"close-btn\" onclick=\"closeOpDetails("<<mi<<")\">&times;</button></div>\n"
+            << "      <div class=\"details-content\">\n";
+        for (size_t i=0; i<sim.op_table.size(); ++i){
+            ofs << "        <div id=\"op-detail-"<<mi<<"-"<<i<<"\" class=\"op-detail-content\" style=\"display:none\">\n";
+            if (events_by_op[i].empty()){ ofs << "<p class=\"muted\">No events recorded for this operation.</p>"; }
+            else {
+                ofs << "<div class=\"filter-tabs\">";
+                auto mkTab=[&](const char* n){ ofs << "<span class=\"filter-tab\" onclick=\"filterOpEvents("<<mi<<","<<i<<",'"<<n<<"')\">"<<n<<"</span>"; };
+                mkTab("All"); mkTab("Stated"); mkTab("Sensitized"); mkTab("Detected"); mkTab("StateMasked"); mkTab("SensMasked"); mkTab("DetectMasked");
+                ofs << "</div><table class=\"striped\"><thead><tr><th>EvtId</th><th>Type</th><th>TP</th><th>Fault</th></tr></thead><tbody>";
+                for (const auto& item : events_by_op[i]){
+                    const auto& e = evs[item.eid]; const auto& tp = all_tps[e.tp_gid()];
+                    const RawFault* rf=nullptr; if (auto it=raw_index_by_id.find(tp.parent_fault_id); it!=raw_index_by_id.end()) rf=&raw_faults.at(it->second);
+                    ofs << "<tr data-type=\""<<item.type<<"\"><td>"<<item.eid<<"</td>"
+                        << "<td><span class=\"badge\" style=\"background:#444\">"<<item.type<<"</span></td>"
+                        << "<td><details><summary>TP #"<<e.tp_gid()<<"</summary>"; write_tp_details(ofs,tp,rf,true,true,true);
+                    ofs << "</details></td><td>"<<html_escape(tp.parent_fault_id)<<"</td></tr>";
+                }
+                ofs << "</tbody></table>";
+            }
+            ofs << "        </div>\n";
+        }
+        ofs << "      </div>\n    </div>\n";
+        ofs << "  </div>\n"; // end dashboard-row
+
+        // Fault Analysis Panel
+        ofs << "  <div class=\"fa-panel\" id=\"fa-panel-"<<mi<<"\">\n"
+            << "    <button class=\"back-btn\" onclick=\"toggleFaultAnalysis("<<mi<<")\">&uarr; Back to Dashboard</button>\n"
+            << "    <div class=\"tab-container\">\n      <div class=\"tab-header\">\n"
+            << "        <button class=\"tab-btn active\" onclick=\"openTab(event,'Faults-MT"<<mi<<"')\">Faults</button>\n"
+            << "        <button class=\"tab-btn\" onclick=\"openTab(event,'Events-MT"<<mi<<"')\">Uncovered Events</button>\n"
+            << "      </div>\n"
+            << "      <div id=\"Faults-MT"<<mi<<"\" class=\"tab-content active\">\n";
+        write_faults_tab(ofs, sim, faults, all_tps, raw_faults, raw_index_by_id, mi);
+        ofs << "      </div>\n      <div id=\"Events-MT"<<mi<<"\" class=\"tab-content\">\n";
+        write_events_tab(ofs, sim, all_tps, raw_faults, raw_index_by_id);
+        ofs << "      </div>\n    </div>\n  </div>\n";
+        ofs << "</div>\n"; // end march-section
+    }
+    ofs << "</body></html>\n"; ofs.close();
+    cout << "[Report] HTML report written to: "<< output_html <<"\n";
 }
 
 // Entry point for Simulator mode (called from main.cpp)

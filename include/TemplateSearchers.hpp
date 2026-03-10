@@ -543,6 +543,75 @@ private:
         return best_overall;
     }
 
+public:
+    // v6: Refine (local search) — try replacing each element position with all candidates
+    //     to improve coverage. Repeats until no improvement or max_passes reached.
+    CandidateResult refine(const CandidateResult& initial, int max_passes = 3) {
+        if (initial.march_test.elements.empty()) return initial;
+
+        // Pre-generate all candidate elements once
+        vector<vector<MarchElement>> all_candidates;
+        all_candidates.reserve(lib_.size());
+        for (size_t tid = 0; tid < lib_.size(); ++tid) {
+            all_candidates.push_back(gen_->generate(lib_, tid));
+        }
+
+        CandidateResult current = initial;
+        current.score = scorer_(current.sim_result, current.march_test);
+
+        for (int pass = 0; pass < max_passes; ++pass) {
+            bool improved = false;
+            size_t L = current.march_test.elements.size();
+
+            for (size_t pos = 0; pos < L; ++pos) {
+                // Try replacing element at pos with every candidate
+                for (size_t tid = 0; tid < lib_.size(); ++tid) {
+                    for (const auto& elem_variant : all_candidates[tid]) {
+                        // Check constraints for this position
+                        if (constraints_) {
+                            PrefixState ps;
+                            for (size_t p = 0; p < pos; ++p) {
+                                constraints_->update(ps, current.march_test.elements[p], p);
+                            }
+                            if (!constraints_->allow(ps, elem_variant, pos)) continue;
+                            // Also check rest of sequence still valid after this change
+                            PrefixState ps2 = ps;
+                            constraints_->update(ps2, elem_variant, pos);
+                            bool rest_ok = true;
+                            for (size_t p = pos + 1; p < L; ++p) {
+                                if (!constraints_->allow(ps2, current.march_test.elements[p], p)) {
+                                    rest_ok = false;
+                                    break;
+                                }
+                                constraints_->update(ps2, current.march_test.elements[p], p);
+                            }
+                            if (!rest_ok) continue;
+                        }
+
+                        // Build trial: replace element at pos
+                        MarchTest trial = current.march_test;
+                        trial.elements[pos] = elem_variant;
+
+                        SimulationResult simres = sim_.simulate(trial, faults_, tps_);
+                        double score = scorer_(simres, trial);
+
+                        if (simres.total_coverage > current.sim_result.total_coverage ||
+                            (std::abs(simres.total_coverage - current.sim_result.total_coverage) < 1e-9
+                             && score > current.score)) {
+                            current.march_test = std::move(trial);
+                            current.sim_result = std::move(simres);
+                            current.score = score;
+                            improved = true;
+                        }
+                    }
+                }
+            }
+            if (!improved) break;
+        }
+        return current;
+    }
+
+private:
     FaultSimulator& sim_;
     const TemplateLibrary& lib_;
     const vector<Fault>& faults_;

@@ -1,0 +1,553 @@
+[
+  {
+    "file": "v00_full.json",
+    "desc": "Full (baseline)",
+    "removed": [],
+    "remaining_count": 34
+  },
+  {
+    "file": "v01_drop_SA0.json",
+    "desc": "Remove SA0",
+    "removed": [
+      "SA0"
+    ],
+    "remaining_count": 33
+  },
+  {
+    "file": "v01_drop_SA1.json",
+    "desc": "Remove SA1",
+    "removed": [
+      "SA1"
+    ],
+    "remaining_count": 33
+  },
+  {
+    "file": "v01_drop_TFu.json",
+    "desc": "Remove TFu",
+    "removed": [
+      "TFu"
+    ],
+    "remaining_count": 33
+  },
+  {
+    "file": "v01_drop_TFd.json",
+    "desc": "Remove TFd",
+    "removed": [
+      "TFd"
+    ],
+    "remaining_count": 33
+  },
+  {
+    "file": "v01_drop_CFid_dn_0_.json",
+    "desc": "Remove CFid(↓,0)",
+    "removed": [
+      "CFid(↓,0)"
+    ],
+    "remaining_count": 33
+  },
+  {
+    "file": "v01_drop_CFid_dn_1_.json",
+    "desc": "Remove CFid(↓,1)",
+    "removed": [
+      "CFid(↓,1)"
+    ],
+    "remaining_count": 33
+  },
+  {
+    "file": "v01_drop_CFid_up_0_.json",
+    "desc": "Remove CFid(↑,0)",
+    "removed": [
+      "CFid(↑,0)"
+    ],
+    "remaining_count": 33
+  },
+  {
+    "file": "v01_drop_CFid_up_1_.json",
+    "desc": "Remove CFid(↑,1)",
+    "removed": [
+      "CFid(↑,1)"
+    ],
+    "remaining_count": 33
+  },
+  {
+    "file": "v01_drop_CIDWD.json",
+    "desc": "Remove CIDWD",
+    "removed": [
+      "CIDWD"
+    ],
+    "remaining_count": 33
+  },
+  {
+    "file": "v01_drop_CIDDB_0_0_.json",
+    "desc": "Remove CIDDB(0,0)",
+    "removed": [
+      "CIDDB(0,0)"
+    ],
+    "remaining_count": 33
+  },
+  {
+    "file": "v01_drop_CIDDB_0_1_.json",
+    "desc": "Remove CIDDB(0,1)",
+    "removed": [
+      "CIDDB(0,1)"
+    ],
+    "remaining_count": 33
+  },
+  {
+    "file": "v01_drop_CIDDB_1_0_.json",
+    "desc": "Remove CIDDB(1,0)",
+    "removed": [
+      "CIDDB(1,0)"
+    ],
+    "remaining_count": 33
+  },
+  {
+    "file": "v01_drop_CIDDB_1_1_.json",
+    "desc": "Remove CIDDB(1,1)",
+    "removed": [
+      "CIDDB(1,1)"
+    ],
+    "remaining_count": 33
+  },
+  {
+    "file": "v01_drop_CIDWDB.json",
+    "desc": "Remove CIDWDB",
+    "removed": [
+      "CIDWDB"
+    ],
+    "remaining_count": 33
+  },
+  {
+    "file": "v01_drop_CIDD_0_0_.json",
+    "desc": "Remove CIDD(0,0)",
+    "removed": [
+      "CIDD(0,0)"
+    ],
+    "remaining_count": 33
+  },
+  {
+    "file": "v01_drop_CIDD_0_1_.json",
+    "desc": "Remove CIDD(0,1)",
+    "removed": [
+      "CIDD(0,1)"
+    ],
+    "remaining_count": 33
+  },
+  {
+    "file": "v01_drop_CIDD_1_0_.json",
+    "desc": "Remove CIDD(1,0)",
+    "removed": [
+      "CIDD(1,0)"
+    ],
+    "remaining_count": 33
+  },
+  {
+    "file": "v01_drop_CIDD_1_1_.json",
+    "desc": "Remove CIDD(1,1)",
+    "removed": [
+      "CIDD(1,1)"
+    ],
+    "remaining_count": 33
+  },
+  {
+    "file": "v01_drop_CDCFst_00_0_.json",
+    "desc": "Remove CDCFst(00,0)",
+    "removed": [
+      "CDCFst(00,0)"
+    ],
+    "remaining_count": 33
+  },
+  {
+    "file": "v01_drop_CDCFst_00_1_.json",
+    "desc": "Remove CDCFst(00,1)",
+    "removed": [
+      "CDCFst(00,1)"
+    ],
+    "remaining_count": 33
+  },
+  {
+    "file": "v01_drop_IC00.json",
+    "desc": "Remove IC00",
+    "removed": [
+      "IC00"
+    ],
+    "remaining_count": 33
+  },
+  {
+    "file": "v01_drop_IC01.json",
+    "desc": "Remove IC01",
+    "removed": [
+      "IC01"
+    ],
+    "remaining_count": 33
+  },
+  {
+    "file": "v01_drop_IC10.json",
+    "desc": "Remove IC10",
+    "removed": [
+      "IC10"
+    ],
+    "remaining_count": 33
+  },
+  {
+    "file": "v01_drop_IC11.json",
+    "desc": "Remove IC11",
+    "removed": [
+      "IC11"
+    ],
+    "remaining_count": 33
+  },
+  {
+    "file": "v01_drop_SDC_11_01_.json",
+    "desc": "Remove SDC(11,01)",
+    "removed": [
+      "SDC(11,01)"
+    ],
+    "remaining_count": 33
+  },
+  {
+    "file": "v01_drop_SDC_11_10_.json",
+    "desc": "Remove SDC(11,10)",
+    "removed": [
+      "SDC(11,10)"
+    ],
+    "remaining_count": 33
+  },
+  {
+    "file": "v01_drop_CIDC.json",
+    "desc": "Remove CIDC",
+    "removed": [
+      "CIDC"
+    ],
+    "remaining_count": 33
+  },
+  {
+    "file": "v01_drop_CI_00_11_.json",
+    "desc": "Remove CI(00,11)",
+    "removed": [
+      "CI(00,11)"
+    ],
+    "remaining_count": 33
+  },
+  {
+    "file": "v01_drop_CI_01_11_.json",
+    "desc": "Remove CI(01,11)",
+    "removed": [
+      "CI(01,11)"
+    ],
+    "remaining_count": 33
+  },
+  {
+    "file": "v01_drop_CI_10_11_.json",
+    "desc": "Remove CI(10,11)",
+    "removed": [
+      "CI(10,11)"
+    ],
+    "remaining_count": 33
+  },
+  {
+    "file": "v01_drop_CIDCB_0_00_.json",
+    "desc": "Remove CIDCB(0,00)",
+    "removed": [
+      "CIDCB(0,00)"
+    ],
+    "remaining_count": 33
+  },
+  {
+    "file": "v01_drop_CIDCB_1_11_.json",
+    "desc": "Remove CIDCB(1,11)",
+    "removed": [
+      "CIDCB(1,11)"
+    ],
+    "remaining_count": 33
+  },
+  {
+    "file": "v01_drop_DDCB_0_11_.json",
+    "desc": "Remove DDCB(0,11)",
+    "removed": [
+      "DDCB(0,11)"
+    ],
+    "remaining_count": 33
+  },
+  {
+    "file": "v01_drop_DDCB_1_11_.json",
+    "desc": "Remove DDCB(1,11)",
+    "removed": [
+      "DDCB(1,11)"
+    ],
+    "remaining_count": 33
+  },
+  {
+    "file": "v02_no_either_read_or_compute.json",
+    "desc": "Remove category=either_read_or_compute",
+    "removed": [
+      "SA0",
+      "SA1",
+      "TFu",
+      "TFd",
+      "CFid(↓,0)",
+      "CFid(↓,1)",
+      "CFid(↑,0)",
+      "CFid(↑,1)",
+      "CIDWD",
+      "CIDDB(0,0)",
+      "CIDDB(0,1)",
+      "CIDDB(1,0)",
+      "CIDDB(1,1)",
+      "CIDWDB"
+    ],
+    "remaining_count": 20
+  },
+  {
+    "file": "v02_no_must_compute.json",
+    "desc": "Remove category=must_compute",
+    "removed": [
+      "IC00",
+      "IC01",
+      "IC10",
+      "IC11",
+      "SDC(11,01)",
+      "SDC(11,10)",
+      "CIDC",
+      "CI(00,11)",
+      "CI(01,11)",
+      "CI(10,11)",
+      "CIDCB(0,00)",
+      "CIDCB(1,11)",
+      "DDCB(0,11)",
+      "DDCB(1,11)"
+    ],
+    "remaining_count": 20
+  },
+  {
+    "file": "v02_no_must_read.json",
+    "desc": "Remove category=must_read",
+    "removed": [
+      "CIDD(0,0)",
+      "CIDD(0,1)",
+      "CIDD(1,0)",
+      "CIDD(1,1)",
+      "CDCFst(00,0)",
+      "CDCFst(00,1)"
+    ],
+    "remaining_count": 28
+  },
+  {
+    "file": "v03_no_single_cell.json",
+    "desc": "Remove scope=single cell",
+    "removed": [
+      "SA0",
+      "SA1",
+      "TFu",
+      "TFd",
+      "CIDWD",
+      "CIDD(0,0)",
+      "CIDD(0,1)",
+      "CIDD(1,0)",
+      "CIDD(1,1)",
+      "IC00",
+      "IC01",
+      "IC10",
+      "IC11",
+      "SDC(11,01)",
+      "SDC(11,10)",
+      "CIDC"
+    ],
+    "remaining_count": 18
+  },
+  {
+    "file": "v03_no_two_cell_row-agnostic.json",
+    "desc": "Remove scope=two cell (row-agnostic)",
+    "removed": [
+      "CFid(↓,0)",
+      "CFid(↓,1)",
+      "CFid(↑,0)",
+      "CFid(↑,1)",
+      "CDCFst(00,0)",
+      "CDCFst(00,1)"
+    ],
+    "remaining_count": 28
+  },
+  {
+    "file": "v03_no_two_cell_cross_row.json",
+    "desc": "Remove scope=two cell cross row",
+    "removed": [
+      "CIDDB(0,0)",
+      "CIDDB(0,1)",
+      "CIDDB(1,0)",
+      "CIDDB(1,1)",
+      "CIDWDB",
+      "CI(00,11)",
+      "CI(01,11)",
+      "CIDCB(0,00)",
+      "CIDCB(1,11)",
+      "DDCB(0,11)",
+      "DDCB(1,11)"
+    ],
+    "remaining_count": 23
+  },
+  {
+    "file": "v03_no_two_cell_same_row.json",
+    "desc": "Remove scope=two cell same row",
+    "removed": [
+      "CI(10,11)"
+    ],
+    "remaining_count": 33
+  },
+  {
+    "file": "v04_no_family_CDCFst.json",
+    "desc": "Remove family=CDCFst (2 faults)",
+    "removed": [
+      "CDCFst(00,0)",
+      "CDCFst(00,1)"
+    ],
+    "remaining_count": 32
+  },
+  {
+    "file": "v04_no_family_CFid.json",
+    "desc": "Remove family=CFid (4 faults)",
+    "removed": [
+      "CFid(↓,0)",
+      "CFid(↓,1)",
+      "CFid(↑,0)",
+      "CFid(↑,1)"
+    ],
+    "remaining_count": 30
+  },
+  {
+    "file": "v04_no_family_CI.json",
+    "desc": "Remove family=CI (3 faults)",
+    "removed": [
+      "CI(00,11)",
+      "CI(01,11)",
+      "CI(10,11)"
+    ],
+    "remaining_count": 31
+  },
+  {
+    "file": "v04_no_family_CIDCB.json",
+    "desc": "Remove family=CIDCB (2 faults)",
+    "removed": [
+      "CIDCB(0,00)",
+      "CIDCB(1,11)"
+    ],
+    "remaining_count": 32
+  },
+  {
+    "file": "v04_no_family_CIDD.json",
+    "desc": "Remove family=CIDD (4 faults)",
+    "removed": [
+      "CIDD(0,0)",
+      "CIDD(0,1)",
+      "CIDD(1,0)",
+      "CIDD(1,1)"
+    ],
+    "remaining_count": 30
+  },
+  {
+    "file": "v04_no_family_CIDDB.json",
+    "desc": "Remove family=CIDDB (4 faults)",
+    "removed": [
+      "CIDDB(0,0)",
+      "CIDDB(0,1)",
+      "CIDDB(1,0)",
+      "CIDDB(1,1)"
+    ],
+    "remaining_count": 30
+  },
+  {
+    "file": "v04_no_family_CIDWD.json",
+    "desc": "Remove family=CIDWD (2 faults)",
+    "removed": [
+      "CIDWD",
+      "CIDWDB"
+    ],
+    "remaining_count": 32
+  },
+  {
+    "file": "v04_no_family_DDCB.json",
+    "desc": "Remove family=DDCB (2 faults)",
+    "removed": [
+      "DDCB(0,11)",
+      "DDCB(1,11)"
+    ],
+    "remaining_count": 32
+  },
+  {
+    "file": "v04_no_family_IC.json",
+    "desc": "Remove family=IC (4 faults)",
+    "removed": [
+      "IC00",
+      "IC01",
+      "IC10",
+      "IC11"
+    ],
+    "remaining_count": 30
+  },
+  {
+    "file": "v04_no_family_SA.json",
+    "desc": "Remove family=SA (2 faults)",
+    "removed": [
+      "SA0",
+      "SA1"
+    ],
+    "remaining_count": 32
+  },
+  {
+    "file": "v04_no_family_SDC.json",
+    "desc": "Remove family=SDC (2 faults)",
+    "removed": [
+      "SDC(11,01)",
+      "SDC(11,10)"
+    ],
+    "remaining_count": 32
+  },
+  {
+    "file": "v05_single_cell_only.json",
+    "desc": "Single cell faults only",
+    "removed": [
+      "CFid(↓,0)",
+      "CFid(↓,1)",
+      "CFid(↑,0)",
+      "CFid(↑,1)",
+      "CIDDB(0,0)",
+      "CIDDB(0,1)",
+      "CIDDB(1,0)",
+      "CIDDB(1,1)",
+      "CIDWDB",
+      "CDCFst(00,0)",
+      "CDCFst(00,1)",
+      "CI(00,11)",
+      "CI(01,11)",
+      "CI(10,11)",
+      "CIDCB(0,00)",
+      "CIDCB(1,11)",
+      "DDCB(0,11)",
+      "DDCB(1,11)"
+    ],
+    "remaining_count": 16
+  },
+  {
+    "file": "v05_two_cell_only.json",
+    "desc": "Two-cell faults only",
+    "removed": [
+      "SA0",
+      "SA1",
+      "TFu",
+      "TFd",
+      "CIDWD",
+      "CIDD(0,0)",
+      "CIDD(0,1)",
+      "CIDD(1,0)",
+      "CIDD(1,1)",
+      "IC00",
+      "IC01",
+      "IC10",
+      "IC11",
+      "SDC(11,01)",
+      "SDC(11,10)",
+      "CIDC"
+    ],
+    "remaining_count": 18
+  }
+]
