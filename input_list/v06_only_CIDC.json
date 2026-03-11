@@ -1,0 +1,11 @@
+[
+  {
+    "fault_id": "CIDC",
+    "category": "must_compute",
+    "cell_scope": "single cell",
+    "fault_primitives": [
+      "< AND0Ci/-/-/1Co >",
+      "< AND1Ci/-/-/0Co >"
+    ]
+  }
+]

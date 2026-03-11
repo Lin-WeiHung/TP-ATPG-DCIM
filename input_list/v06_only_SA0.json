@@ -1,0 +1,10 @@
+[
+  {
+    "fault_id": "SA0",
+    "category": "either_read_or_compute",
+    "cell_scope": "single cell",
+    "fault_primitives": [
+      "< 1D/0D/-/- >"
+    ]
+  }
+]

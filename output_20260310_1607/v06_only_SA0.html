@@ -1,0 +1,239 @@
+<!DOCTYPE html><html><head><meta charset="utf-8">
+<title>March Simulation Report</title>
+<style>
+:root {
+    --bg-color: #1e1e1e;
+    --text-color: #d4d4d4;
+    --link-color: #3794ff;
+    --border-color: #444;
+    --table-head-bg: #252526;
+    --table-row-even: #2d2d2d;
+    --table-row-odd: #1e1e1e;
+    --code-bg: #2d2d2d;
+    --accent-color: #007acc;
+    --success-color: #4ec9b0;
+    --warning-color: #ce9178;
+    --danger-color: #f44747;
+    --tab-active-bg: #3e3e42;
+    --tab-inactive-bg: #2d2d2d;
+}
+body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-color); color: var(--text-color); margin: 0; padding: 20px; }
+a { color: var(--link-color); text-decoration: none; }
+a:hover { text-decoration: underline; }
+h1, h2, h3 { color: var(--text-color); }
+.muted { color: #888; font-size: 0.9em; }
+.badge { display: inline-block; background: var(--accent-color); color: white; border-radius: 4px; padding: 2px 6px; font-size: 12px; margin-left: 8px; }
+table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 14px; }
+th, td { border: 1px solid var(--border-color); padding: 8px; text-align: left; }
+th { background-color: var(--table-head-bg); position: sticky; top: 0; z-index: 10; }
+tr:nth-child(even) { background-color: var(--table-row-even); }
+tr:nth-child(odd) { background-color: var(--table-row-odd); }
+.tab-container { margin-top: 15px; border: 1px solid var(--border-color); border-radius: 4px; overflow: hidden; }
+.tab-header { display: flex; background-color: var(--tab-inactive-bg); border-bottom: 1px solid var(--border-color); }
+.tab-btn { background: none; border: none; outline: none; cursor: pointer; padding: 10px 20px; color: var(--text-color); font-size: 14px; transition: 0.3s; }
+.tab-btn:hover { background-color: #3e3e42; }
+.tab-btn.active { background-color: var(--tab-active-bg); border-bottom: 2px solid var(--accent-color); font-weight: bold; }
+.tab-content { display: none; padding: 15px; background-color: var(--bg-color); animation: fadeEffect 0.5s; }
+.tab-content.active { display: block; }
+@keyframes fadeEffect { from {opacity: 0;} to {opacity: 1;} }
+.progress-container { background-color: #444; border-radius: 4px; width: 100px; height: 10px; display: inline-block; vertical-align: middle; margin-right: 8px; overflow: hidden; }
+.progress-bar { height: 100%; background-color: var(--success-color); }
+.cov-text { font-weight: bold; }
+.filter-input { background-color: var(--code-bg); border: 1px solid var(--border-color); color: var(--text-color); padding: 6px; border-radius: 4px; margin-bottom: 10px; width: 200px; }
+.state { font-family: 'Consolas', monospace; color: #9cdcfe; }
+.tpd { margin: 4px 0 4px 12px; border-left: 2px solid var(--border-color); padding-left: 8px; }
+details { margin: 5px 0; }
+summary { cursor: pointer; font-weight: 600; padding: 4px; }
+summary:hover { background-color: #333; }
+.march-section { border: 1px solid var(--border-color); margin-bottom: 30px; background: var(--code-bg); border-radius: 6px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+.march-header { padding: 10px 15px; background: #333; color: #fff; font-weight: bold; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+.dashboard-row { display: flex; transition: all 0.3s ease; height: 600px; overflow: hidden; }
+.dashboard-row.collapsed { height: 0; }
+.stats-col { width: 250px; padding: 20px; background: #1e1e1e; border-right: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 25px; flex-shrink: 0; overflow-y: auto; transition: all 0.3s ease; }
+.stat-item { text-align: left; }
+.stat-label { font-size: 13px; color: #aaa; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+.stat-value { font-size: 28px; font-weight: bold; color: var(--success-color); margin-bottom: 5px; }
+.stat-sub { font-size: 12px; color: #666; }
+.ops-col { flex: 1; padding: 0; background: var(--bg-color); overflow-y: auto; position: relative; display: flex; flex-direction: column; transition: all 0.3s ease; }
+.ops-list { flex: 1; overflow-y: auto; }
+.op-row { display: flex; align-items: center; padding: 10px 15px; border-bottom: 1px solid var(--border-color); transition: background 0.2s; }
+.op-row:hover { background: #2a2d2e; }
+.op-row.active { background: #37373d; border-left: 4px solid var(--accent-color); }
+.op-icon { width: 40px; text-align: center; font-size: 20px; color: #569cd6; margin-right: 10px; }
+.op-info { flex: 1; font-family: 'Consolas', monospace; font-size: 14px; }
+.op-btn { background: #0e639c; color: white; border: none; padding: 6px 14px; border-radius: 15px; cursor: pointer; font-size: 12px; font-weight: 600; transition: background 0.2s; }
+.op-btn:hover { background: #1177bb; transform: scale(1.05); }
+.details-col { width: 0; border-left: 1px solid var(--border-color); background: #1e1e1e; transition: all 0.3s ease; display: flex; flex-direction: column; overflow: hidden; }
+.details-header { padding: 10px; background: var(--table-head-bg); border-bottom: 1px solid var(--border-color); }
+.details-content { flex: 1; overflow-y: auto; padding: 15px; }
+.dashboard-row.split-active .stats-col { width: 180px; padding: 10px; }
+.dashboard-row.split-active .stats-col .stat-label { font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dashboard-row.split-active .stats-col .stat-value { font-size: 18px; }
+.dashboard-row.split-active .stats-col .progress-container { width: 100%; margin-right: 0; }
+.dashboard-row.split-active .stats-col .stat-sub { display: none; }
+.dashboard-row.split-active .ops-col { flex: 0 0 500px; }
+.dashboard-row.split-active .details-col { flex: 1; width: auto; }
+.fa-toggle-container { padding: 15px; border-top: 1px solid var(--border-color); text-align: right; background: #252526; }
+.fa-btn { background: #333; color: #ddd; border: 1px solid #555; padding: 8px 16px; cursor: pointer; border-radius: 4px; font-size: 13px; }
+.fa-btn:hover { background: #444; }
+.fa-panel { display: none; padding: 20px; background: var(--bg-color); border-top: 1px solid var(--border-color); }
+.fa-panel.active { display: block; }
+.back-btn { margin-bottom: 15px; background: #333; color: #fff; border: none; padding: 8px 16px; cursor: pointer; border-radius: 4px; }
+.filter-tabs { display: flex; gap: 5px; margin-bottom: 10px; flex-wrap: wrap; }
+.filter-tab { background: #2d2d2d; border: 1px solid #444; color: #aaa; padding: 4px 10px; cursor: pointer; font-size: 12px; border-radius: 3px; }
+.filter-tab.active { background: var(--accent-color); color: white; border-color: var(--accent-color); }
+.elem-group { display: flex; border-bottom: 1px solid var(--border-color); }
+.elem-marker { width: 30px; background: #252526; display: flex; align-items: center; justify-content: center; border-right: 1px solid var(--border-color); font-weight: bold; color: #888; writing-mode: vertical-rl; transform: rotate(180deg); }
+.elem-ops { flex: 1; display: flex; flex-direction: column; }
+.op-row { display: flex; align-items: center; padding: 8px 15px; border-bottom: 1px solid #333; transition: background 0.2s; height: 40px; }
+.op-row:last-child { border-bottom: none; }
+.op-row:hover { background: #2a2d2e; }
+.op-row.active { background: #37373d; }
+.state-viz { display: flex; gap: 2px; margin-right: 15px; }
+.state-box { width: 30px; height: 24px; background: #333; border: 1px solid #555; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #ccc; font-family: monospace; }
+.state-box.active { border-color: #007acc; color: white; }
+.details-header { padding: 10px; background: var(--table-head-bg); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; height: 40px; }
+.details-title { font-weight: bold; display: flex; align-items: center; gap: 10px; }
+.close-btn { background: none; border: none; color: #aaa; font-size: 20px; cursor: pointer; padding: 0 5px; }
+.close-btn:hover { color: white; }
+</style>
+<script>
+function showOpDetails(marchIdx, opIdx) {
+  // 1. Activate Split Mode
+  document.getElementById('dash-row-' + marchIdx).classList.add('split-active');
+  document.getElementById('det-col-' + marchIdx).classList.add('active');
+  // 2. Highlight Row
+  var rows = document.querySelectorAll('#ops-list-' + marchIdx + ' .op-row');
+  rows.forEach(r => r.classList.remove('active'));
+  var activeRow = document.getElementById('op-row-' + marchIdx + '-' + opIdx);
+  activeRow.classList.add('active');
+  // 3. Update Header Info (Copy from row)
+  var headerContent = document.getElementById('det-header-content-' + marchIdx);
+  var stateViz = activeRow.querySelector('.state-viz').outerHTML;
+  var opText = activeRow.querySelector('.op-text').innerText;
+  headerContent.innerHTML = stateViz + ' <span style="font-family:monospace;font-size:14px;margin-left:10px">' + opText + '</span>';
+  // 4. Show Specific Content
+  var contents = document.querySelectorAll('#det-col-' + marchIdx + ' .op-detail-content');
+  contents.forEach(c => c.style.display = 'none');
+  var target = document.getElementById('op-detail-' + marchIdx + '-' + opIdx);
+  if(target) target.style.display = 'block';
+  // 5. Default to 'All' tab
+  filterOpEvents(marchIdx, opIdx, 'All');
+}
+function closeOpDetails(marchIdx) {
+  document.getElementById('dash-row-' + marchIdx).classList.remove('split-active');
+  document.getElementById('det-col-' + marchIdx).classList.remove('active');
+  var rows = document.querySelectorAll('#ops-list-' + marchIdx + ' .op-row');
+  rows.forEach(r => r.classList.remove('active'));
+}
+function toggleFaultAnalysis(marchIdx) {
+  var dashRow = document.getElementById('dash-row-' + marchIdx);
+  var faPanel = document.getElementById('fa-panel-' + marchIdx);
+  if (faPanel.classList.contains('active')) {
+    faPanel.classList.remove('active');
+    dashRow.classList.remove('collapsed');
+  } else {
+    faPanel.classList.add('active');
+    dashRow.classList.add('collapsed');
+  }
+}
+function filterOpEvents(marchIdx, opIdx, type) {
+  // Update tabs UI
+  var container = document.getElementById('op-detail-' + marchIdx + '-' + opIdx);
+  var tabs = container.querySelectorAll('.filter-tab');
+  tabs.forEach(t => {
+    if(t.innerText === type) t.classList.add('active');
+    else t.classList.remove('active');
+  });
+  // Filter rows
+  var rows = container.querySelectorAll('tbody tr');
+  rows.forEach(r => {
+    if (type === 'All' || r.getAttribute('data-type') === type) r.style.display = '';
+    else r.style.display = 'none';
+  });
+}
+function openTab(evt, tabName) {
+  // Hide all tab contents in the same container
+  var container = evt.target.closest('.tab-container');
+  var contents = container.querySelectorAll('.tab-content');
+  contents.forEach(c => c.classList.remove('active'));
+  // Deactivate all tab buttons
+  var btns = container.querySelectorAll('.tab-btn');
+  btns.forEach(b => b.classList.remove('active'));
+  // Show selected tab and activate button
+  document.getElementById(tabName).classList.add('active');
+  evt.target.classList.add('active');
+}
+</script>
+</head><body>
+<h1>March Simulation Report</h1>
+<p class="muted">Faults: 1, TPs: 2, MarchTests: 1</p>
+<section id="fault-anchors" style="display:none"><div id="fault-SA0"></div></section><div class="march-section">
+  <div class="march-header" onclick="toggleFaultAnalysis(0)"><span>current pattern 2026-03-10</span><span><span class="badge" style="background:#555">3 Ops</span><span class="badge">100.00% Cov</span></span></div>
+  <div class="dashboard-row" id="dash-row-0">
+    <div class="stats-col">
+<div class="stat-item"><div class="stat-label">Single Cell Coverage</div><div class="stat-value">100.00%</div><div class="progress-container"><div class="progress-bar" style="width:100.00%"></div></div><span class="cov-text">1 faults</span></div><div class="stat-item"><div class="stat-label">Two Cell Coverage</div><div class="stat-value">0.00%</div><div class="progress-container"><div class="progress-bar" style="width:0.00%"></div></div><span class="cov-text">0 faults</span></div><div class="stat-item"><div class="stat-label">Total Coverage</div><div class="stat-value">100.00%</div><div class="progress-container"><div class="progress-bar" style="width:100.00%"></div></div><span class="cov-text">1 faults</span></div><div style="margin-top:auto;font-size:16px;font-weight:bold;color:#eee;padding-top:15px;border-top:1px solid #444">Run Time: 16 us</div>
+    </div>
+    <div class="ops-col">
+      <div class="ops-list" id="ops-list-0">
+        <div class="elem-group">
+          <div class="elem-marker">Elem 1</div>
+          <div class="elem-ops">
+            <div class="op-row" id="op-row-0-0">
+              <div class="op-icon">&uarr;</div>
+              <div class="state-viz">
+<div class="state-box">0,-</div><div class="state-box">0,-</div><div class="state-box active">-,-</div><div class="state-box">-,-</div><div class="state-box">-,-</div>              </div>
+              <div class="op-info"><span class="op-text">W0</span></div>
+              <button class="op-btn" onclick="showOpDetails(0,0)">0 Events</button>
+            </div>
+          </div>
+        </div>
+        <div class="elem-group">
+          <div class="elem-marker">Elem 2</div>
+          <div class="elem-ops">
+            <div class="op-row" id="op-row-0-1">
+              <div class="op-icon">&uarr;</div>
+              <div class="state-viz">
+<div class="state-box">1,1</div><div class="state-box">1,0</div><div class="state-box active">0,0</div><div class="state-box">0,0</div><div class="state-box">0,0</div>              </div>
+              <div class="op-info"><span class="op-text">W1</span></div>
+              <button class="op-btn" onclick="showOpDetails(0,1)">0 Events</button>
+            </div>
+            <div class="op-row" id="op-row-0-2">
+              <div class="op-icon">&uarr;</div>
+              <div class="state-viz">
+<div class="state-box">1,1</div><div class="state-box">1,0</div><div class="state-box active">1,0</div><div class="state-box">0,0</div><div class="state-box">0,0</div>              </div>
+              <div class="op-info"><span class="op-text">C(0)(1)(0)</span></div>
+              <button class="op-btn" onclick="showOpDetails(0,2)">5 Events</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="fa-toggle-container"><button class="fa-btn" onclick="toggleFaultAnalysis(0)">Fault Analysis &darr;</button></div>
+    </div>
+    <div class="details-col" id="det-col-0">
+      <div class="details-header"><div class="details-title" id="det-header-content-0">Operation Events</div><button class="close-btn" onclick="closeOpDetails(0)">&times;</button></div>
+      <div class="details-content">
+        <div id="op-detail-0-0" class="op-detail-content" style="display:none">
+<p class="muted">No events recorded for this operation.</p>        </div>
+        <div id="op-detail-0-1" class="op-detail-content" style="display:none">
+<p class="muted">No events recorded for this operation.</p>        </div>
+        <div id="op-detail-0-2" class="op-detail-content" style="display:none">
+<div class="filter-tabs"><span class="filter-tab" onclick="filterOpEvents(0,2,'All')">All</span><span class="filter-tab" onclick="filterOpEvents(0,2,'Stated')">Stated</span><span class="filter-tab" onclick="filterOpEvents(0,2,'Sensitized')">Sensitized</span><span class="filter-tab" onclick="filterOpEvents(0,2,'Detected')">Detected</span><span class="filter-tab" onclick="filterOpEvents(0,2,'StateMasked')">StateMasked</span><span class="filter-tab" onclick="filterOpEvents(0,2,'SensMasked')">SensMasked</span><span class="filter-tab" onclick="filterOpEvents(0,2,'DetectMasked')">DetectMasked</span></div><table class="striped"><thead><tr><th>EvtId</th><th>Type</th><th>TP</th><th>Fault</th></tr></thead><tbody><tr data-type="Stated"><td>0</td><td><span class="badge" style="background:#444">Stated</span></td><td><details><summary>TP #0</summary><div class="tpd"><div><b>Fault:</b> <a href="#fault-SA0">SA0</a></div><div><b>Primitive:</b> &lt; 1D/0D/-/- &gt;</div><div><b>Group:</b> single</div><div><b>TP State:</b> A0(-,-) A1(-,-) CAS(1,-) A3(-,-) A4(-,-)</div><div><b>Ops(before detect):</b> -</div><div><b>Detector:</b> R1 [#]</div></div></details></td><td>SA0</td></tr><tr data-type="Sensitized"><td>0</td><td><span class="badge" style="background:#444">Sensitized</span></td><td><details><summary>TP #0</summary><div class="tpd"><div><b>Fault:</b> <a href="#fault-SA0">SA0</a></div><div><b>Primitive:</b> &lt; 1D/0D/-/- &gt;</div><div><b>Group:</b> single</div><div><b>TP State:</b> A0(-,-) A1(-,-) CAS(1,-) A3(-,-) A4(-,-)</div><div><b>Ops(before detect):</b> -</div><div><b>Detector:</b> R1 [#]</div></div></details></td><td>SA0</td></tr><tr data-type="Stated"><td>1</td><td><span class="badge" style="background:#444">Stated</span></td><td><details><summary>TP #1</summary><div class="tpd"><div><b>Fault:</b> <a href="#fault-SA0">SA0</a></div><div><b>Primitive:</b> &lt; 1D/0D/-/- &gt;</div><div><b>Group:</b> single</div><div><b>TP State:</b> A0(-,-) A1(-,-) CAS(1,-) A3(-,-) A4(-,-)</div><div><b>Ops(before detect):</b> -</div><div><b>Detector:</b> C(-)(1)(-) [#]</div></div></details></td><td>SA0</td></tr><tr data-type="Sensitized"><td>1</td><td><span class="badge" style="background:#444">Sensitized</span></td><td><details><summary>TP #1</summary><div class="tpd"><div><b>Fault:</b> <a href="#fault-SA0">SA0</a></div><div><b>Primitive:</b> &lt; 1D/0D/-/- &gt;</div><div><b>Group:</b> single</div><div><b>TP State:</b> A0(-,-) A1(-,-) CAS(1,-) A3(-,-) A4(-,-)</div><div><b>Ops(before detect):</b> -</div><div><b>Detector:</b> C(-)(1)(-) [#]</div></div></details></td><td>SA0</td></tr><tr data-type="Detected"><td>1</td><td><span class="badge" style="background:#444">Detected</span></td><td><details><summary>TP #1</summary><div class="tpd"><div><b>Fault:</b> <a href="#fault-SA0">SA0</a></div><div><b>Primitive:</b> &lt; 1D/0D/-/- &gt;</div><div><b>Group:</b> single</div><div><b>TP State:</b> A0(-,-) A1(-,-) CAS(1,-) A3(-,-) A4(-,-)</div><div><b>Ops(before detect):</b> -</div><div><b>Detector:</b> C(-)(1)(-) [#]</div></div></details></td><td>SA0</td></tr></tbody></table>        </div>
+      </div>
+    </div>
+  </div>
+  <div class="fa-panel" id="fa-panel-0">
+    <button class="back-btn" onclick="toggleFaultAnalysis(0)">&uarr; Back to Dashboard</button>
+    <div class="tab-container">
+      <div class="tab-header">
+        <button class="tab-btn active" onclick="openTab(event,'Faults-MT0')">Faults</button>
+        <button class="tab-btn" onclick="openTab(event,'Events-MT0')">Uncovered Events</button>
+      </div>
+      <div id="Faults-MT0" class="tab-content active">
+<h3>Fault Coverage Summary (1)</h3><input type="text" id="faultsInput-0" onkeyup="filterTable('faultsInput-0', 'faultsTable-0')" placeholder="Search for faults..." class="filter-input"><table class="striped" id="faultsTable-0"><thead><tr><th>#</th><th>Fault ID</th><th>Coverage</th><th>TPs</th></tr></thead><tbody><tr><td>0</td><td>SA0</td><td class=""><div class="progress-container"><div class="progress-bar" style="width:100.00%"></div></div><span class="cov-text">100.00%</span></td><td><details><summary>Detected (1)</summary><details><summary>#1</summary><div class="tpd"><div><b>Fault:</b> <a href="#fault-SA0">SA0</a></div><div><b>Primitive:</b> &lt; 1D/0D/-/- &gt;</div><div><b>Group:</b> single</div><div><b>TP State:</b> A0(-,-) A1(-,-) CAS(1,-) A3(-,-) A4(-,-)</div><div><b>Ops(before detect):</b> -</div><div><b>Detector:</b> C(-)(1)(-) [#]</div></div></details></details><details><summary>Undetected (1)</summary><details><summary>#0</summary><div class="tpd"><div><b>Fault:</b> <a href="#fault-SA0">SA0</a></div><div><b>Primitive:</b> &lt; 1D/0D/-/- &gt;</div><div><b>Group:</b> single</div><div><b>TP State:</b> A0(-,-) A1(-,-) CAS(1,-) A3(-,-) A4(-,-)</div><div><b>Ops(before detect):</b> -</div><div><b>Detector:</b> R1 [#]</div></div></details></details></td></tr></tbody></table>      </div>
+      <div id="Events-MT0" class="tab-content">
+<h3>Uncovered TP Groups (0)</h3><p>All groups covered.</p>      </div>
+    </div>
+  </div>
+</div>
+</body></html>

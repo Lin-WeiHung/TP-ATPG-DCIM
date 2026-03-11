@@ -1,0 +1,10 @@
+[
+  {
+    "fault_id": "IC00",
+    "category": "must_compute",
+    "cell_scope": "single cell",
+    "fault_primitives": [
+      "< AND0Ci0D/-/-/1Co >"
+    ]
+  }
+]

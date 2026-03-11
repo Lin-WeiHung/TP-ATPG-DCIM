@@ -1,0 +1,11 @@
+[
+  {
+    "fault_id": "CIDWD",
+    "category": "either_read_or_compute",
+    "cell_scope": "single cell",
+    "fault_primitives": [
+      "< 1Ci1W0D/1D/-/- >",
+      "< 1Ci0W1D/0D/-/- >"
+    ]
+  }
+]

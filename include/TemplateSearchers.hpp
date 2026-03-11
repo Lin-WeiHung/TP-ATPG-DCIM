@@ -20,6 +20,7 @@
 #include <stdexcept>
 #include <functional> // v2: for ScoreFunc
 #include <sstream>
+#include <iomanip>
 #include <cstddef>
 #include <queue>
 #include <random>    // v5: for multi-start noise
@@ -562,8 +563,14 @@ public:
         for (int pass = 0; pass < max_passes; ++pass) {
             bool improved = false;
             size_t L = current.march_test.elements.size();
+            std::cerr << "[Refine] Pass " << (pass+1) << "/" << max_passes
+                      << ": L=" << L << " elements, "
+                      << lib_.size() << " templates\n";
 
             for (size_t pos = 0; pos < L; ++pos) {
+                std::cerr << "[Refine]   pos " << pos << "/" << L
+                          << " (cov=" << std::fixed << std::setprecision(4)
+                          << (current.sim_result.total_coverage * 100.0) << "%)\r" << std::flush;
                 // Try replacing element at pos with every candidate
                 for (size_t tid = 0; tid < lib_.size(); ++tid) {
                     for (const auto& elem_variant : all_candidates[tid]) {
@@ -606,7 +613,167 @@ public:
                     }
                 }
             }
-            if (!improved) break;
+            std::cerr << "\n";
+            if (!improved) {
+                std::cerr << "[Refine] Pass " << (pass+1) << ": no improvement, stopping\n";
+                break;
+            }
+            std::cerr << "[Refine] Pass " << (pass+1) << " done, cov="
+                      << std::fixed << std::setprecision(4)
+                      << (current.sim_result.total_coverage * 100.0) << "%\n";
+        }
+        return current;
+    }
+
+    // Phase 2: Compress — reduce ops while maintaining coverage.
+    // Tries replacing each element with simpler alternatives (fewer ops),
+    // and tries removing elements entirely.
+    // accept_threshold: coverage must remain >= this value (typically the coverage before compress)
+    CandidateResult compress(const CandidateResult& initial,
+                             const std::vector<TemplateLibrary>& smaller_libs,
+                             int max_passes = 3) {
+        if (initial.march_test.elements.empty()) return initial;
+
+        double target_cov = initial.sim_result.total_coverage;
+
+        // Pre-generate candidates from all libraries (current + smaller ones)
+        // Each candidate tagged with its ops count for preference
+        struct TaggedCandidate {
+            MarchElement elem;
+            std::size_t ops;
+        };
+        vector<TaggedCandidate> all_candidates;
+
+        // Add candidates from smaller libs first (preferred — fewer ops)
+        for (const auto& slib : smaller_libs) {
+            ValueExpandingGenerator g;
+            for (size_t tid = 0; tid < slib.size(); ++tid) {
+                for (auto& e : g.generate(slib, tid)) {
+                    std::size_t nops = e.ops.size();
+                    all_candidates.push_back({std::move(e), nops});
+                }
+            }
+        }
+        // Also add from the current lib
+        {
+            ValueExpandingGenerator g;
+            for (size_t tid = 0; tid < lib_.size(); ++tid) {
+                for (auto& e : g.generate(lib_, tid)) {
+                    std::size_t nops = e.ops.size();
+                    all_candidates.push_back({std::move(e), nops});
+                }
+            }
+        }
+
+        // Sort candidates: prefer fewer ops
+        std::sort(all_candidates.begin(), all_candidates.end(),
+                  [](const TaggedCandidate& a, const TaggedCandidate& b) {
+                      return a.ops < b.ops;
+                  });
+
+        auto count_ops = [](const MarchTest& mt) -> std::size_t {
+            std::size_t n = 0;
+            for (const auto& e : mt.elements) n += e.ops.size();
+            return n;
+        };
+
+        CandidateResult current = initial;
+        current.score = scorer_(current.sim_result, current.march_test);
+
+        for (int pass = 0; pass < max_passes; ++pass) {
+            bool improved = false;
+            size_t L = current.march_test.elements.size();
+            std::size_t cur_ops = count_ops(current.march_test);
+            std::cerr << "[Compress] Pass " << (pass+1) << "/" << max_passes
+                      << ": L=" << L << ", ops=" << cur_ops << "\n";
+
+            // Try removing each element
+            for (size_t pos = 0; pos < current.march_test.elements.size(); ++pos) {
+                MarchTest trial = current.march_test;
+                trial.elements.erase(trial.elements.begin() + static_cast<long>(pos));
+
+                // Validate constraints on remaining sequence
+                if (constraints_) {
+                    PrefixState ps;
+                    bool valid = true;
+                    for (size_t p = 0; p < trial.elements.size(); ++p) {
+                        if (!constraints_->allow(ps, trial.elements[p], p)) {
+                            valid = false;
+                            break;
+                        }
+                        constraints_->update(ps, trial.elements[p], p);
+                    }
+                    if (!valid) continue;
+                }
+
+                SimulationResult simres = sim_.simulate(trial, faults_, tps_);
+                if (simres.total_coverage >= target_cov - 1e-9) {
+                    std::cerr << "[Compress]   Removed element " << pos
+                              << " -> ops=" << count_ops(trial)
+                              << ", cov=" << std::fixed << std::setprecision(4)
+                              << (simres.total_coverage * 100.0) << "%\n";
+                    current.march_test = std::move(trial);
+                    current.sim_result = std::move(simres);
+                    current.score = scorer_(current.sim_result, current.march_test);
+                    improved = true;
+                    --pos; // re-check this position since elements shifted
+                }
+            }
+
+            // Try replacing each element with simpler alternatives
+            L = current.march_test.elements.size();
+            for (size_t pos = 0; pos < L; ++pos) {
+                std::size_t current_elem_ops = current.march_test.elements[pos].ops.size();
+                std::cerr << "[Compress]   pos " << pos << "/" << L
+                          << " (ops=" << count_ops(current.march_test) << ")\r" << std::flush;
+
+                for (const auto& tc : all_candidates) {
+                    // Only try candidates with fewer ops than current element
+                    if (tc.ops >= current_elem_ops) continue;
+
+                    // Check constraints
+                    if (constraints_) {
+                        PrefixState ps;
+                        for (size_t p = 0; p < pos; ++p) {
+                            constraints_->update(ps, current.march_test.elements[p], p);
+                        }
+                        if (!constraints_->allow(ps, tc.elem, pos)) continue;
+                        PrefixState ps2 = ps;
+                        constraints_->update(ps2, tc.elem, pos);
+                        bool rest_ok = true;
+                        for (size_t p = pos + 1; p < L; ++p) {
+                            if (!constraints_->allow(ps2, current.march_test.elements[p], p)) {
+                                rest_ok = false;
+                                break;
+                            }
+                            constraints_->update(ps2, current.march_test.elements[p], p);
+                        }
+                        if (!rest_ok) continue;
+                    }
+
+                    MarchTest trial = current.march_test;
+                    trial.elements[pos] = tc.elem;
+
+                    SimulationResult simres = sim_.simulate(trial, faults_, tps_);
+                    if (simres.total_coverage >= target_cov - 1e-9) {
+                        current.march_test = std::move(trial);
+                        current.sim_result = std::move(simres);
+                        current.score = scorer_(current.sim_result, current.march_test);
+                        improved = true;
+                        break; // this candidate is already sorted by fewest ops, take it
+                    }
+                }
+            }
+
+            std::cerr << "\n";
+            if (!improved) {
+                std::cerr << "[Compress] Pass " << (pass+1) << ": no improvement, stopping\n";
+                break;
+            }
+            std::cerr << "[Compress] Pass " << (pass+1) << " done: ops="
+                      << count_ops(current.march_test)
+                      << ", cov=" << std::fixed << std::setprecision(4)
+                      << (current.sim_result.total_coverage * 100.0) << "%\n";
         }
         return current;
     }

@@ -1,0 +1,34 @@
+[
+  {
+    "fault_id": "CIDD(0,0)",
+    "category": "must_read",
+    "cell_scope": "single cell",
+    "fault_primitives": [
+      "< 0Ci1D/0D/-/- >"
+    ]
+  },
+  {
+    "fault_id": "CIDD(0,1)",
+    "category": "must_read",
+    "cell_scope": "single cell",
+    "fault_primitives": [
+      "< 0Ci0D/1D/-/- >"
+    ]
+  },
+  {
+    "fault_id": "CIDD(1,0)",
+    "category": "must_read",
+    "cell_scope": "single cell",
+    "fault_primitives": [
+      "< 1Ci1D/0D/-/- >"
+    ]
+  },
+  {
+    "fault_id": "CIDD(1,1)",
+    "category": "must_read",
+    "cell_scope": "single cell",
+    "fault_primitives": [
+      "< 1Ci0D/1D/-/- >"
+    ]
+  }
+]

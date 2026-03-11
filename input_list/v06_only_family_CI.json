@@ -1,0 +1,26 @@
+[
+  {
+    "fault_id": "CI(00,11)",
+    "category": "must_compute",
+    "cell_scope": "two cell cross row",
+    "fault_primitives": [
+      "< 0Ci0D; AND1Ci1D/-/-/0Co >"
+    ]
+  },
+  {
+    "fault_id": "CI(01,11)",
+    "category": "must_compute",
+    "cell_scope": "two cell cross row",
+    "fault_primitives": [
+      "< 0Ci1D; AND1Ci1D/-/-/0Co >"
+    ]
+  },
+  {
+    "fault_id": "CI(10,11)",
+    "category": "must_compute",
+    "cell_scope": "two cell same row",
+    "fault_primitives": [
+      "< 1Ci0D; AND1Ci1D/-/-/0Co >"
+    ]
+  }
+]

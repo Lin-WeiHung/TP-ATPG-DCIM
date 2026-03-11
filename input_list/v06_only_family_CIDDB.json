@@ -1,0 +1,34 @@
+[
+  {
+    "fault_id": "CIDDB(0,0)",
+    "category": "either_read_or_compute",
+    "cell_scope": "two cell cross row",
+    "fault_primitives": [
+      "< 0Ci; 1D/0D/-/- >"
+    ]
+  },
+  {
+    "fault_id": "CIDDB(0,1)",
+    "category": "either_read_or_compute",
+    "cell_scope": "two cell cross row",
+    "fault_primitives": [
+      "< 0Ci; 0D/1D/-/- >"
+    ]
+  },
+  {
+    "fault_id": "CIDDB(1,0)",
+    "category": "either_read_or_compute",
+    "cell_scope": "two cell cross row",
+    "fault_primitives": [
+      "< 1Ci; 1D/0D/-/- >"
+    ]
+  },
+  {
+    "fault_id": "CIDDB(1,1)",
+    "category": "either_read_or_compute",
+    "cell_scope": "two cell cross row",
+    "fault_primitives": [
+      "< 1Ci; 0D/1D/-/- >"
+    ]
+  }
+]

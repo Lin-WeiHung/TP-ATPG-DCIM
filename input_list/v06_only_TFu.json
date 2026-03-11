@@ -1,0 +1,10 @@
+[
+  {
+    "fault_id": "TFu",
+    "category": "either_read_or_compute",
+    "cell_scope": "single cell",
+    "fault_primitives": [
+      "< 0W1D/0D/-/- >"
+    ]
+  }
+]

@@ -1,0 +1,34 @@
+[
+  {
+    "fault_id": "IC00",
+    "category": "must_compute",
+    "cell_scope": "single cell",
+    "fault_primitives": [
+      "< AND0Ci0D/-/-/1Co >"
+    ]
+  },
+  {
+    "fault_id": "IC01",
+    "category": "must_compute",
+    "cell_scope": "single cell",
+    "fault_primitives": [
+      "< AND0Ci1D/-/-/1Co >"
+    ]
+  },
+  {
+    "fault_id": "IC10",
+    "category": "must_compute",
+    "cell_scope": "single cell",
+    "fault_primitives": [
+      "< AND1Ci0D/-/-/1Co >"
+    ]
+  },
+  {
+    "fault_id": "IC11",
+    "category": "must_compute",
+    "cell_scope": "single cell",
+    "fault_primitives": [
+      "< AND1Ci1D/-/-/0Co >"
+    ]
+  }
+]

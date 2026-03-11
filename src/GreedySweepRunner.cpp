@@ -282,8 +282,9 @@ int run_greedy_sweep(int argc, char** argv){
     // Refine: Fine-tuning (local search) on the best result
     // =========================================================
     if (!reached_100) {
-        std::cout << "\n[Refine] === Fine-tuning best result via local search ===\n";
+        std::cout << "\n[Refine] === Phase 1: Coverage-first local search ===\n";
 
+        // Phase 1: Refine with ZERO op penalty to maximize coverage
         std::size_t refine_slots = best_slots + 1;
 
         if (lib_cache.find(refine_slots) == lib_cache.end()) {
@@ -295,12 +296,13 @@ int run_greedy_sweep(int argc, char** argv){
         refine_constraints.add(std::make_shared<FirstElementWriteOnlyConstraint>());
         refine_constraints.add(std::make_shared<DataReadPolarityConstraint>());
 
-        auto refine_scorer = css::template_search::make_score_state_total_ops(w_state, w_total, op_penalty_val);
+        // Coverage-first scorer: zero op penalty
+        auto cov_scorer = css::template_search::make_score_state_total_ops(w_state, w_total, 0.0);
 
         GreedyTemplateSearcher refine_searcher(
             sim, refine_lib, faults, tps,
             std::make_unique<ValueExpandingGenerator>(),
-            refine_scorer,
+            cov_scorer,
             &refine_constraints
         );
 
@@ -326,8 +328,76 @@ int run_greedy_sweep(int argc, char** argv){
             overall_best = refined;
             best_coverage = refined.sim_result.total_coverage;
         }
+        // Update reached_100 flag after refine
+        if (best_coverage >= 1.0 - 1e-9) {
+            reached_100 = true;
+        }
     } else {
         std::cout << "\n[Refine] Skipped (already 100% coverage)\n";
+    }
+
+    // =========================================================
+    // Compress: Phase 2 — reduce ops while maintaining coverage
+    // =========================================================
+    {
+        std::cout << "\n[Compress] === Phase 2: Minimize ops (maintain coverage) ===\n";
+
+        // Build smaller template libraries for compress candidates
+        std::vector<TemplateLibrary> smaller_libs;
+        for (std::size_t s = 1; s <= best_slots + 1 && s <= max_slots; ++s) {
+            if (lib_cache.find(s) == lib_cache.end()) {
+                lib_cache.emplace(s, TemplateLibrary::make_bruce(s));
+            }
+            smaller_libs.push_back(lib_cache.at(s));
+        }
+
+        SequenceConstraintSet compress_constraints;
+        compress_constraints.add(std::make_shared<FirstElementWriteOnlyConstraint>());
+        compress_constraints.add(std::make_shared<DataReadPolarityConstraint>());
+
+        // Compress scorer: high op penalty to prefer fewer ops
+        auto compress_scorer = css::template_search::make_score_state_total_ops(w_state, w_total, 0.1);
+
+        // Use the largest lib for the searcher base
+        std::size_t compress_lib_slots = std::min(best_slots + 1, max_slots);
+        if (lib_cache.find(compress_lib_slots) == lib_cache.end()) {
+            lib_cache.emplace(compress_lib_slots, TemplateLibrary::make_bruce(compress_lib_slots));
+        }
+        const auto& compress_lib = lib_cache.at(compress_lib_slots);
+
+        GreedyTemplateSearcher compress_searcher(
+            sim, compress_lib, faults, tps,
+            std::make_unique<ValueExpandingGenerator>(),
+            compress_scorer,
+            &compress_constraints
+        );
+
+        std::size_t ops_before = 0;
+        for (const auto& e : overall_best.march_test.elements) ops_before += e.ops.size();
+
+        auto t_c0 = std::chrono::steady_clock::now();
+        CandidateResult compressed = compress_searcher.compress(overall_best, smaller_libs, 3);
+        auto t_c1 = std::chrono::steady_clock::now();
+        auto compress_ms = std::chrono::duration_cast<std::chrono::milliseconds>(t_c1 - t_c0).count();
+
+        std::size_t ops_after = 0;
+        for (const auto& e : compressed.march_test.elements) ops_after += e.ops.size();
+
+        std::cout << "[Compress] Before: " << ops_before << " ops, cov="
+                  << std::fixed << std::setprecision(4)
+                  << (overall_best.sim_result.total_coverage * 100.0) << "%\n";
+        std::cout << "[Compress] After:  " << ops_after << " ops, cov="
+                  << std::fixed << std::setprecision(4)
+                  << (compressed.sim_result.total_coverage * 100.0) << "%\n";
+        std::cout << "[Compress] Saved: " << (static_cast<long>(ops_before) - static_cast<long>(ops_after))
+                  << " ops\n";
+        std::cout << "[Compress] Elapsed: " << compress_ms << " ms\n";
+
+        // Accept compressed result if coverage is maintained
+        if (compressed.sim_result.total_coverage >= best_coverage - 1e-9) {
+            overall_best = compressed;
+            best_coverage = compressed.sim_result.total_coverage;
+        }
     }
 
     auto t_all1 = std::chrono::steady_clock::now();
@@ -408,6 +478,12 @@ int run_greedy_sweep(int argc, char** argv){
     if (!overall_best.march_test.name.empty()) {
         std::cout << "[Sweep] Best config: " << overall_best.march_test.name << "\n";
     }
+    // Count ops in the final march test
+    std::size_t final_ops = 0;
+    for (const auto& elem : overall_best.march_test.elements)
+        final_ops += elem.ops.size();
+    std::cout << "[Sweep] Best ops: " << final_ops
+              << " (" << overall_best.march_test.elements.size() << " elements)\n";
     std::cout << "[Sweep] Reached 100%: " << (reached_100 ? "Yes" : "No") << "\n";
     std::cout << "[Sweep] Total elapsed: " << total_ms << " ms\n";
     std::cout << "[Sweep] HTML written: " << out_html << "\n";
